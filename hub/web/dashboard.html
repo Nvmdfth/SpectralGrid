@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="theme-color" content="#050805">
+<title>SpectralGrid</title>
+<style>
+:root{
+  --void:#050805; --panel:#070d08; --line:#0f2a17; --phos:#00ff66; --phos-dim:#0a7a3a; --cyan:#00e5ff;
+  --amber:#ffb000; --red:#ff2222; --blood:#5a0a0a; --ink:#bfffd6; --mute:#4d7a5c;
+  --glitch:0;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--void);color:var(--ink);font:13px/1.45 ui-monospace,"Cascadia Mono","Courier New",monospace;
+  overscroll-behavior:none;touch-action:manipulation}
+body{min-height:100vh;padding:0 0 40px;overflow-x:hidden;position:relative}
+/* atmosphere: scanlines, vignette, grain */
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.28) 0 1px,transparent 1px 3px);mix-blend-mode:multiply}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:51;
+  background:radial-gradient(ellipse at 50% 40%,transparent 45%,rgba(0,0,0,.85) 100%)}
+#grain{position:fixed;inset:-64px;pointer-events:none;z-index:49;opacity:.045;background-size:128px 128px;animation:grain 1s steps(6) infinite}
+@keyframes grain{0%{transform:translate(0,0)}20%{transform:translate(-23px,17px)}40%{transform:translate(19px,-31px)}60%{transform:translate(-37px,-9px)}80%{transform:translate(29px,23px)}100%{transform:translate(0,0)}}
+main{max-width:1100px;margin:0 auto;padding:0 14px}
+.hide{display:none!important}
+
+/* header */
+header{padding:22px 0 10px;border-bottom:1px solid var(--line);margin-bottom:14px;position:relative}
+h1{margin:0;font-size:30px;letter-spacing:.34em;font-weight:700;color:var(--phos);position:relative;display:inline-block;
+  text-shadow:0 0 12px rgba(0,255,102,.55),0 0 36px rgba(0,255,102,.25)}
+h1::before,h1::after{content:attr(data-t);position:absolute;left:0;top:0;width:100%;overflow:hidden;opacity:calc(.25 + var(--glitch)*.75)}
+h1::before{color:var(--red);transform:translate(calc(-1px - var(--glitch)*4px),0);clip-path:inset(0 0 55% 0);animation:gl1 3.2s infinite steps(1)}
+h1::after{color:var(--cyan);transform:translate(calc(1px + var(--glitch)*4px),0);clip-path:inset(60% 0 0 0);animation:gl2 2.7s infinite steps(1)}
+@keyframes gl1{0%,90%{clip-path:inset(0 0 55% 0)}92%{clip-path:inset(20% 0 40% 0)}94%{clip-path:inset(60% 0 10% 0)}96%{clip-path:inset(5% 0 70% 0)}100%{clip-path:inset(0 0 55% 0)}}
+@keyframes gl2{0%,86%{clip-path:inset(60% 0 0 0)}88%{clip-path:inset(10% 0 60% 0)}91%{clip-path:inset(45% 0 25% 0)}100%{clip-path:inset(60% 0 0 0)}}
+.sub{color:var(--mute);letter-spacing:.28em;font-size:10px;margin-top:6px;text-transform:uppercase}
+.rune{color:var(--phos-dim);letter-spacing:.5em;font-size:11px;margin:2px 0}
+.chips{position:absolute;right:0;top:24px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:46%}
+.chip{border:1px solid var(--line);padding:2px 7px;font-size:10px;letter-spacing:.14em;color:var(--mute);text-transform:uppercase;background:#050a06}
+.chip.on{color:var(--phos);border-color:var(--phos-dim);box-shadow:0 0 8px rgba(0,255,102,.25) inset}
+.chip.warn{color:var(--amber);border-color:#6b4a00}
+.chip.bad{color:var(--red);border-color:var(--blood);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.35}}
+
+/* layout */
+.grid{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
+.grid>div{display:grid;gap:14px;align-content:start;grid-template-columns:minmax(0,1fr);min-width:0}
+.panel{min-width:0}
+@media(min-width:900px){.grid{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}}
+.panel{background:linear-gradient(180deg,var(--panel),#040704);border:1px solid var(--line);padding:12px;position:relative}
+.panel::before{content:"";position:absolute;left:-1px;top:-1px;width:14px;height:14px;border-left:2px solid var(--phos-dim);border-top:2px solid var(--phos-dim)}
+.panel::after{content:"";position:absolute;right:-1px;bottom:-1px;width:14px;height:14px;border-right:2px solid var(--phos-dim);border-bottom:2px solid var(--phos-dim)}
+.panel h2{margin:0 0 10px;font-size:11px;letter-spacing:.3em;color:var(--phos-dim);font-weight:400;text-transform:uppercase;display:flex;justify-content:space-between}
+.panel h2 span{color:var(--mute);letter-spacing:.1em}
+
+/* score */
+#score{display:flex;gap:16px;align-items:center}
+#ring{width:132px;height:132px;flex:none;filter:drop-shadow(0 0 8px var(--ringc,#00ff66))}
+#ring circle{fill:none;stroke-width:9}
+#ring .bg{stroke:#0b1a10}
+#ring .fg{stroke:var(--ringc,#00ff66);stroke-linecap:butt;transition:stroke-dashoffset .25s,stroke .25s;transform:rotate(-90deg);transform-origin:50% 50%}
+#ring text{fill:var(--ringc,#00ff66);font:700 34px ui-monospace,monospace;text-anchor:middle}
+#state{font-size:20px;letter-spacing:.2em;font-weight:700;color:var(--ringc,#00ff66);text-shadow:0 0 14px var(--ringc,#00ff66)}
+#vector{color:var(--ink);margin-top:4px;min-height:2.6em}
+#vecwhy{min-height:4.2em;overflow:hidden}
+#score.hot #state{animation:shake .12s infinite}
+@keyframes shake{25%{transform:translate(1px,-1px)}50%{transform:translate(-1px,1px)}75%{transform:translate(1px,1px)}}
+
+canvas{display:block;width:100%;background:#020402;border:1px solid var(--line)}
+#radar{aspect-ratio:1/1;max-height:560px;touch-action:none;cursor:crosshair}
+.hint{color:var(--mute);font-size:10px;margin-top:6px}
+
+/* nodes table */
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{color:var(--mute);font-weight:400;text-align:left;font-size:10px;letter-spacing:.14em;text-transform:uppercase;padding:2px 4px}
+td{padding:5px 4px;border-top:1px solid #0a1a0e;white-space:nowrap}
+td.n{font-weight:700}
+.dot{display:inline-block;width:9px;height:9px;margin-right:6px;border-radius:50%;vertical-align:-1px}
+.off{opacity:.35}
+.bar{height:5px;background:#0a1a0e;min-width:44px;position:relative}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:currentColor;box-shadow:0 0 6px currentColor}
+
+/* controls */
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{font:inherit;letter-spacing:.14em;text-transform:uppercase;font-size:11px;color:var(--phos);background:#04100a;border:1px solid var(--phos-dim);
+  padding:9px 12px;cursor:pointer;min-height:38px}
+button:active{background:#0a2a14}
+button.on{background:var(--phos);color:#001a08;box-shadow:0 0 14px rgba(0,255,102,.5)}
+button.red{color:var(--red);border-color:var(--blood)}
+button:disabled{opacity:.35;cursor:not-allowed}
+input[type=range]{accent-color:var(--phos);width:120px}
+a.btn{display:inline-block;font:inherit;letter-spacing:.14em;text-transform:uppercase;font-size:11px;color:var(--phos);background:#04100a;border:1px solid var(--phos-dim);padding:9px 12px;text-decoration:none}
+input[type=text]{font:inherit;background:#04100a;color:var(--ink);border:1px solid var(--line);padding:7px;min-height:34px;flex:1;min-width:120px}
+button.mini{padding:2px 7px;min-height:0;font-size:9px;margin-left:6px;letter-spacing:.08em}
+#driftbar .dr{border:1px solid #6b4a00;background:#140e00;color:var(--amber);padding:8px 10px;margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#driftbar .dr span{flex:1;min-width:180px}
+#tagchips{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
+.tagchip{border:1px solid #4a3a6b;color:#c8b6ff;background:#0d0a18;padding:2px 8px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
+#toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:60;padding:10px 16px;border:1px solid var(--phos-dim);background:#02100a;color:var(--phos);letter-spacing:.14em;text-transform:uppercase;font-size:12px;display:none;max-width:92vw}
+#toast.touch{border-color:#6fa8ff;color:#fff;box-shadow:0 0 18px rgba(111,168,255,.5)}
+#toast.hot{border-color:var(--red);color:var(--red);box-shadow:0 0 18px rgba(255,34,34,.5)}#toast.mid{border-color:var(--amber);color:var(--amber)}
+.touchb{background:#fff;color:#0030ff;padding:0 5px;margin-left:6px;font-size:9px;letter-spacing:.1em;font-weight:700}
+#log .e-touch{color:#6fa8ff}#log .e-tag{color:#c8b6ff}#log .e-sys{color:#6fa883}
+.clip{border-top:1px solid #0a1a0e;padding:6px 0;font-size:11px;color:var(--mute)}.clip audio{width:100%;height:30px;margin-top:3px}
+select{font:inherit;background:#04100a;color:var(--phos);border:1px solid var(--phos-dim);padding:6px;min-height:34px}
+.warnc{color:var(--amber)}
+label.tog{display:flex;align-items:center;gap:6px;color:var(--mute);font-size:11px}
+
+#log{height:150px;overflow:auto;font-size:11px;color:var(--mute);border:1px solid var(--line);padding:6px;background:#020402}
+#log div{padding:1px 0}
+#log b{color:var(--phos-dim);font-weight:400;margin-right:8px}
+#log .e-hi{color:var(--red)} #log .e-mid{color:var(--amber)} #log .e-ok{color:var(--phos)}
+footer{margin-top:18px;text-align:center;color:#244531;font-size:10px;letter-spacing:.3em}
+footer p{margin:4px 0}
+@media(prefers-reduced-motion:reduce){#grain,h1::before,h1::after,.chip.bad,#score.hot #state{animation:none}}
+@media(max-width:560px){.chips{position:static;max-width:none;justify-content:flex-start;margin-top:10px} h1{font-size:23px}}
+
+/* layout stability: live values must not resize their containers */
+html{scrollbar-gutter:stable}
+body{font-variant-numeric:tabular-nums}
+#nodes,table{font-variant-numeric:tabular-nums}
+table{table-layout:fixed}
+.tscroll{overflow-x:auto;container-type:inline-size}
+#nodetbl th:nth-child(1){width:30%}#nodetbl th:nth-child(2){width:9%}#nodetbl th:nth-child(3){width:12%}#nodetbl th:nth-child(4){width:9%}#nodetbl th:nth-child(5){width:18%}#nodetbl th:nth-child(6){width:8%}#nodetbl th:nth-child(7){width:7%}#nodetbl th:nth-child(8){width:7%}
+@container (max-width:600px){
+  #nodetbl,#nodetbl tbody{display:block}#nodetbl thead{display:none}
+  #nodetbl tr{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px 8px;border-top:1px solid #0a1a0e;padding:6px 0}
+  #nodetbl td{border:0;padding:0;white-space:normal;overflow:visible}
+  #nodetbl td:first-child{grid-column:1/-1;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-bottom:4px}
+  #nodetbl td[data-l]::before{content:attr(data-l);display:block;color:var(--mute);font-size:9px;letter-spacing:.14em;text-transform:uppercase}
+  #nodetbl td.bar-c{grid-column:1/-1;order:5}
+  #nodetbl td[colspan]{grid-column:1/-1}
+}
+#calres th:nth-child(n){width:25%}
+#calres td,#calres th{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;vertical-align:top}   /* review values must never be clipped */
+td{overflow:hidden;text-overflow:ellipsis}
+.panel h2{white-space:nowrap;gap:12px}
+.panel h2 span{overflow:hidden;text-overflow:ellipsis;min-width:0}
+#state{min-width:11ch}
+#vector{height:2.9em;overflow:hidden}
+#tagchips{min-height:22px;align-content:flex-start}
+.chips{min-height:22px}
+.chip{white-space:nowrap}
+#evpclips{max-height:260px;overflow:auto}
+#evpnote:empty,#alst:empty{display:none}
+
+/* views: Dashboard (data and visuals) and Settings (calibration, logging, extras) */
+.tabs{display:flex;gap:8px;margin:0 0 14px}
+.tabs a{flex:1;text-align:center;font:inherit;letter-spacing:.14em;text-transform:uppercase;font-size:11px;color:var(--phos);background:#04100a;border:1px solid var(--phos-dim);padding:9px 12px;text-decoration:none}
+.tabs a.on{background:var(--phos);color:#001a08;box-shadow:0 0 14px rgba(0,255,102,.5)}
+</style>
+</head>
+<body>
+<div id="grain"></div>
+<div id="toast"></div>
+<main>
+<header>
+  <h1 id="title" data-t="SPECTRALGRID">SPECTRALGRID</h1>
+  <div class="rune">&dagger; &Dagger; &dagger; &Dagger; &dagger;</div>
+  <div class="sub">EMF &middot; RF &middot; THERMAL // listening for what shouldn't be there</div>
+  <div class="chips">
+    <span class="chip" id="c-link">link</span>
+    <span class="chip" id="c-nodes">nodes 0</span>
+    <span class="chip" id="c-pair">pairing off</span>
+    <span class="chip warn hide" id="c-demo">demo data</span>
+    <span class="chip warn hide" id="c-replay">replay</span>
+  </div>
+</header>
+
+<div id="driftbar"></div>
+<nav class="tabs"><a id="tab-main" class="on" href="#">Dashboard</a><a id="tab-set" href="#settings">Settings</a></nav>
+<div id="view-main">
+<div class="grid">
+  <div>
+<section class="panel" id="score">
+      <svg id="ring" viewBox="0 0 132 132"><circle class="bg" cx="66" cy="66" r="56"/><circle class="fg" id="arc" cx="66" cy="66" r="56" stroke-dasharray="351.9" stroke-dashoffset="351.9"/><text x="66" y="78" id="num">0</text></svg>
+      <div>
+        <div id="state">DORMANT</div>
+        <div id="vector">No disturbance.</div><div id="vecwhy" class="hint">&nbsp;</div>
+        <div id="tagchips"></div>
+      </div>
+    </section>
+<section class="panel">
+      <h2>Node square <span>drag nodes to place</span></h2>
+      <canvas id="radar" width="560" height="560"></canvas>
+      <div class="hint">The four boards are the corners (hub bottom-left, node 1 top-left, node 4 top-right, node 3 bottom-right). Each line is an RF link: green = quiet, amber = movement, red = something on the line. The white dot is a rough guess of where a STILL person is, from how far each path's signal drops (about 3 ft off on the recordings: a region, not a point; it needs the alarm on and does not follow a walker). The red glow is every disturbed link smeared along its path. It fades over about 30 s. Probe-to-probe links need the probes to be calibrated (dimmed lines are not). Positions are stored on this device.</div>
+    </section>
+  </div>
+  <div>
+<section class="panel">
+      <h2>Field strength <span id="chartmode">EMF p2p / 10 s</span></h2>
+      <canvas id="chart" width="560" height="170"></canvas>
+      <div class="row" style="margin-top:8px">
+        <button id="b-emf" class="on">EMF</button><button id="b-temp">Thermal &Delta;</button><button id="b-csi">RF link</button>
+      </div>
+    </section>
+<section class="panel">
+      <h2>Entities <span>nodes in the grid</span></h2>
+      <div class="tscroll"><table id="nodetbl"><thead><tr><th>Node</th><th>State</th><th>EMF</th><th>Temp</th><th>Batt</th><th>RSSI</th><th>Loss</th><th>CSI</th></tr></thead><tbody id="nodes"></tbody></table></div>
+    </section>
+<section class="panel hide" id="csicp">
+      <h2>Labels <span>recording</span></h2>
+      <div class="row" id="csicbtns"></div>
+      <div class="hint">A serial capture or the field log is recording. Tap the activity you are about to do, and keep doing it until you tap the next one. Tap "Empty" first and last.</div>
+    </section>
+<section class="panel">
+      <h2>Event log <span>this session</span></h2>
+      <div id="log"></div>
+    </section>
+  </div>
+</div>
+</div>
+<div id="view-settings" class="hide">
+<div class="grid">
+  <div>
+<section class="panel" id="calp">
+      <h2>Calibration <span id="calst">idle</span></h2>
+      <div class="row">
+        <label class="tog">node <select id="cal-node"><option value="all">all nodes</option></select></label>
+        <label class="tog">sensitivity <select id="cal-sens"><option value="0">low (fewer alerts)</option><option value="1" selected>normal</option><option value="2">high (more sensitive)</option></select></label>
+      </div>
+      <div class="row" style="margin-top:8px"><button id="b-calstart">Start 30 s capture</button><button id="b-calreset" class="red">Reset to defaults</button></div>
+      <div class="hint" id="calcur">&nbsp;</div>
+      <div id="calbar" class="hide" style="margin-top:10px"><div class="bar" style="height:8px;color:var(--cyan)"><i id="calfill" style="width:0"></i></div><div class="hint" id="caltext"></div></div>
+      <div id="calres" class="hide" style="margin-top:10px">
+        <div id="calsum"></div>
+        <details style="margin-top:8px"><summary class="hint" style="cursor:pointer">EMF channels (advanced)</summary>
+        <table><thead><tr><th>Node</th><th>Before</th><th>After</th><th>Scale</th></tr></thead><tbody id="calbody"></tbody></table></details>
+        <div class="row" style="margin-top:10px"><button id="b-calok" class="on">Accept</button><button id="b-caldiscard" class="red">Discard</button></div>
+      </div>
+      <div class="hint">Run after adding, swapping or moving an antenna wire, or relocating a node. Keep the area still while it samples. Nothing changes until you accept; accepted values are stored on the hub.</div>
+    </section>
+<section class="panel" id="thp">
+      <h2>Thermal sensitivity <span id="thval">-</span></h2>
+      <div class="row"><input type="range" id="th-sl" min="0" max="4" step="1" value="2" style="flex:1;min-width:0"></div>
+      <div class="hint" style="display:flex;justify-content:space-between"><span>most sensitive</span><span>least sensitive</span></div>
+      <div class="hint" id="thlive">&nbsp;</div>
+    </section>
+<section class="panel hide" id="fldp">
+      <h2>Field log <span id="fldst">off</span></h2>
+      <div class="row"><button id="b-fldon">Start logging</button><button id="b-fldoff">Stop</button><a class="btn" href="/api/field/log" download="field.bin">Download</a><button id="b-flderase" class="red">Erase</button></div>
+      <div class="hint" id="fldinfo">&nbsp;</div>
+      <div class="hint">Records detector windows, node channels, raw CSI amplitudes, events and your labels to the hub's flash, so a battery-powered run can be evaluated afterwards. Double-click BOOT on the hub to calibrate without this page: it waits 10 s, captures 30 s, and accepts only if the area stayed still.</div>
+    </section>
+    <section class="panel" id="otap">
+      <h2>Probe updates <span id="otast">idle</span></h2>
+      <div class="row"><input type="file" id="ota-file" accept=".bin"><button id="b-otaup">Upload image</button></div>
+      <div class="hint" id="ota-fw">no image stored</div>
+      <div class="row"><label class="tog">probe <select id="ota-node"><option value="1">1</option></select></label><button id="b-otaarm">Arm update</button><button id="b-otacancel" class="red">Cancel</button></div>
+      <div class="hint" id="ota-stat">&nbsp;</div>
+      <div class="row"><label class="tog">gate <input type="number" id="og-gate" style="width:64px"> dBm</label><label class="tog">stable <input type="number" id="og-stable" style="width:56px"> min</label></div>
+      <div class="row"><label class="tog">spread <input type="number" id="og-spread" style="width:56px"> dB</label><label class="tog">loss <input type="number" id="og-loss" style="width:56px"> %</label><button id="b-ogsave">Save</button></div>
+      <div class="hint">Uploading and arming need the OTA window: hold BOOT on the hub for 8 s (or type <b>ota</b> on its serial console). An armed update is sent only after the link has stayed above the gate, steady and nearly loss-free for the stable time, with no field log or calibration running. It expires after 2 h.</div>
+    </section>
+    <section class="panel">
+      <h2>Pairing <span>probes</span></h2>
+      <div class="row"><button id="b-pair">Pair probe</button></div>
+      <div class="hint">Opens a 60 s pairing window on the hub, then power the probe. The header chip shows "pairing open". Holding BOOT on the hub for 3 s does the same.</div>
+    </section>
+  </div>
+  <div>
+<section class="panel" id="ctxp">
+      <h2>Context <span>explain it before it haunts you</span></h2>
+      <div class="row" id="tagbtns"></div>
+      <div class="row" style="margin-top:8px"><label class="tog">for <select id="tag-dur"><option value="600" selected>10 min</option><option value="3600">1 hour</option><option value="0">note only</option></select></label><input id="tag-note" type="text" maxlength="24" placeholder="note (optional)"></div>
+      <div class="hint">Tags mark a time window as likely explained (shown on the score and in the log). They annotate: they never silence the score or the LED. Mark one probe as <b>control</b> in the table: placed away from the area of interest, it flags environment-wide disturbances as COMMON-MODE.</div>
+    </section>
+<section class="panel" id="replayp">
+      <h2>Session replay <span id="repinfo">not loaded</span></h2>
+      <div class="row"><button id="b-repload">Load session</button><button id="b-repplay" disabled>Play</button><button id="b-replive" disabled>Back to live</button>
+        <label class="tog">speed <select id="rep-speed"><option value="1">1x</option><option value="4" selected>4x</option><option value="16">16x</option></select></label></div>
+      <input id="rep-slider" type="range" min="0" max="1000" value="0" style="width:100%;margin-top:8px" disabled>
+      <div class="hint" id="reptime">The hub records the grid at 2 Hz into memory (about 5 hours); events persist across reboots.</div>
+      <div class="row" style="margin-top:6px"><a class="btn" href="/api/session.csv" download>Session CSV</a><a class="btn" href="/api/events.csv" download>Events CSV</a></div>
+    </section>
+<section class="panel" id="evpp">
+      <h2>EVP recorder <span id="evpst">off</span></h2>
+      <div class="row"><button id="b-evparm">Arm recorder</button><button id="b-evprec" disabled>Record 20 s now</button>
+        <label class="tog">auto at <select id="evp-th"><option value="71">manifesting</option><option value="31">stirring</option><option value="999">manual only</option></select></label></div>
+      <div class="hint" id="evpnote"></div>
+      <div id="evpclips"></div>
+    </section>
+<section class="panel">
+      <h2>Audio &amp; alerts <span id="audiost">muted</span></h2>
+      <div class="row">
+        <button id="b-audio">Enable audio</button>
+        <button id="b-geiger" class="on">Geiger</button><button id="b-drone">Drone</button>
+      </div>
+      <div class="row" style="margin-top:8px"><label class="tog">vol <input id="vol" type="range" min="0" max="100" value="55"></label></div>
+      <div class="row" style="margin-top:8px"><label class="tog"><input type="checkbox" id="al-vib"> vibrate</label><label class="tog"><input type="checkbox" id="al-notif"> notify</label><label class="tog"><input type="checkbox" id="al-flash" checked> flash title</label></div>
+      <div class="hint" id="alst"></div>
+      <div class="hint">Synthesised on this device.</div>
+    </section>
+  </div>
+</div>
+</div>
+<footer><p>&dagger; THE SIGNAL IS NOT THE SOURCE &dagger;</p><p>spectralgrid</p></footer>
+</main>
+
+<script>
+(()=>{
+"use strict";
+const $=s=>document.querySelector(s), clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const COL=['#00ff66','#00e5ff','#ffb000','#ff4fd8','#9d7bff','#ff6b6b','#4dffd2','#ffd24d','#7bd0ff','#c7ff4d','#ff9d4d','#4d6bff','#d24dff','#4dff6b','#ff4d9d','#4dd2ff','#b0b0b0'];
+const S={score:0,vector:'QUIET',vecId:-1,nodes:new Map(),links:new Map(),pairing:false,demo:false,live:false,
+  hist:new Map(),base:new Map(),cbase:new Map(),chart:'emf',prevOn:new Map()};
+const HN=200;
+let pos={}; try{pos=JSON.parse(localStorage.getItem('sg.pos')||'{}')}catch(e){}
+const nodeName=id=>id===0?'HUB':'PROBE '+id;
+const cOf=id=>COL[id%COL.length];
+
+/* ---------- log ---------- */
+const logEl=$('#log');
+function log(msg,cls){const d=document.createElement('div');const t=new Date();
+  d.innerHTML='<b>'+t.toTimeString().slice(0,8)+'</b>'+msg;if(cls)d.className=cls;logEl.prepend(d);while(logEl.children.length>60)logEl.lastChild.remove();}
+
+/* ---------- data ---------- */
+function dev(map,id,x,al){al=al||.02; // EMA baseline, returns positive deviation beyond 2.5 sigma
+  let b=map.get(id);if(!b){b={m:x,v:0,n:0};map.set(id,b)}
+  const d=x-b.m, over=Math.max(0,d-2.5*Math.sqrt(b.v));
+  b.m+=al*d;b.v=(1-al)*(b.v+al*d*d);b.n++;return b.n<40?0:over;
+}
+const CHN=['','EMF wire','RF link','thermal','presence'];
+function vecText(v,id,top){
+  v=String(v).replace(/_\d+$/,'');   // the hub sends e.g. LINE_BREAK_1; the id is in vec_id
+  const n=id>=0?' // '+nodeName(id):'';
+  switch(v){case'QUIET':return'No disturbance.';
+    case'ROOM_MOTION':return'MOTION IN THE ROOM'+n;case'LINE_BREAK':return'PRESENCE ON THE LINK'+n;
+    case'LOCAL_NODE':return'LOCAL ANOMALY'+n+' // EMF wire';case'BARRIER_BREACH':return'BARRIER BREACH // LINK '+id+' // RF';
+    case'MULTI_LINK_BREACH':return'MULTIPLE LINKS DISTURBED';case'GRID_ANOMALY':return'GRID-WIDE ANOMALY';
+    case'THERMAL':return'COLD SPOT'+n+' // thermal';case'COMMON_MODE':return'COMMON-MODE: likely environmental';case'RF_DISTURBANCE':return'RF DISTURBANCE // HUB LINK // RF';
+    case'UNCLASSIFIED':return'MINOR ACTIVITY'+(top&&top[0]?' // '+nodeName(top[2])+' '+CHN[top[0]]+' '+top[1]+'/100':'');default:return v}
+}
+function vecWhy(v,id){
+  v=String(v).replace(/_\d+$/,'');const n=S.nodes.get(id),l=S.links.get(id),nm=id>=0?nodeName(id):'',f1=x=>(+x).toFixed(1);
+  const rf=l?'RF link '+(n&&n.on?'RSSI '+n.rssi+' dB, ':'')+'variance '+f1(l.csi):'no RF link on the hub itself (it is the receiver)';
+  switch(v){
+    case'QUIET':return'EMF, thermal and RF all inside their baselines.';
+    case'LOCAL_NODE':return n?nm+' EMF wire: swing '+f1(n.p2p)+' counts over 10 s ('+(n.edev>0?'+'+f1(n.edev)+' beyond normal':'back near normal')+'). RF is not involved ('+rf+'). Check for something near the wire; recalibrate if boards were moved.':'Only one node\'s EMF wire moved; RF is normal.';
+    case'THERMAL':return n?nm+' die temperature changed '+(n.d_temp>0?'+':'')+f1(n.d_temp)+' \u00b0C in 3 s; needs a drop over '+(S.thGate||1)+' \u00b0C (Settings: Thermal sensitivity). EMF and RF are normal.':'A sharp temperature drop on one node; EMF and RF are normal.';
+    case'ROOM_MOTION':return'Wi-Fi signal shape is fluctuating on '+(l?'link '+id+' (variance '+f1(l.csi)+')':'a link')+' while signal strength is normal: movement near the link, not on it.';
+    case'LINE_BREAK':return'Signal strength dropped on '+(l?'link '+id:'a link')+(n&&n.on?' (RSSI '+n.rssi+' dB)':'')+': something is standing between the hub and the probe.';
+    case'BARRIER_BREACH':return'RF variance up on link '+id+(l?' ('+f1(l.csi)+')':'')+', EMF normal: disturbance between the hub and that probe (not yet calibrated for presence).';
+    case'RF_DISTURBANCE':return'RF variance up on the hub\'s own link, EMF normal: Wi-Fi interference or movement near the hub.';
+    case'MULTI_LINK_BREACH':return'Several RF links disturbed together, EMF quiet: movement across the area or interference.';
+    case'GRID_ANOMALY':return'EMF and RF both disturbed on several nodes: large or wide-area event (or a power or equipment change).';
+    case'COMMON_MODE':return'The control probe was disturbed too, so the cause is probably environmental (mains, Wi-Fi, temperature) rather than local.';
+    case'UNCLASSIFIED':return(S.top&&S.top[0]?'Strongest: '+nodeName(S.top[2])+' '+CHN[S.top[0]]+' at '+S.top[1]+' of 100. ':'')+'A channel is above its quiet level but below the bar for a named event (EMF, thermal or RF score 20-40 of 100), or the channels disagree. Usually a small blip; only worry if it repeats or grows.';
+    default:return''}
+}
+/* The ring and state label show a held, slowly decaying score so a brief spike stays readable; alerts, EVP and the log use the raw one. */
+const DISP_HOLD_MS=5000,DISP_DECAY=.006;   // decay in points per ms after the hold (6 points/s)
+function dispScore(raw){const now=Date.now(),dt=Math.min(now-(S.dispT||now),1000);S.dispT=now;
+  if(S.disp===undefined)S.disp=0;
+  if(raw>=S.disp){S.disp=raw;S.dispHold=now+DISP_HOLD_MS}
+  else if(now>(S.dispHold||0))S.disp=Math.max(raw,S.disp-dt*DISP_DECAY);
+  return Math.round(S.disp)}
+function apply(f){
+  S.score=f.score|0;S.top=[f.top|0,f.top_v|0,f.top_id===undefined?-1:f.top_id];if(f.vector&&f.vector!=='QUIET')S.holdVec=[f.vector,f.vec_id,S.top];if(f.t!==undefined&&!S.replay)S.hubOff=Date.now()-f.t;S.drift=f.drift||[];S.tags=f.tags||[];if(!S.replay)alerts(S.score);evpAuto(S.score);
+  if(!S.demo){ if(f.cal)setCal({s:f.cal.s,left:f.cal.left}); else if(S.cal.s!=='idle')setCal({s:'idle',left:0}) }
+  if(f.vector!==S.vector||f.vec_id!==S.vecId){ if(f.vector!=='QUIET'||S.vector!=='QUIET') if(S.demo)log(f.vector==='QUIET'?'Grid quiet':'<span>'+vecText(f.vector,f.vec_id,S.top)+'</span>',f.vector==='QUIET'?'e-ok':(f.score>70?'e-hi':'e-mid')); S.vector=f.vector;S.vecId=f.vec_id;}
+  if(!!f.pairing!==S.pairing){S.pairing=!!f.pairing;if(S.demo)log(S.pairing?'Pairing window open':'Pairing window closed')}
+  const seen=new Set();
+  for(const n of f.nodes){seen.add(n.id);const o={...n,edev:dev(S.base,n.id,n.p2p)};S.nodes.set(n.id,o);
+    let h=S.hist.get(n.id);if(!h){h={emf:[],temp:[]};S.hist.set(n.id,h)}
+    h.emf.push(n.p2p);h.temp.push(n.d_temp);if(h.emf.length>HN){h.emf.shift();h.temp.shift()}
+    const was=S.prevOn.get(n.id);if(S.demo&&was!==undefined&&was!==!!n.on)log(nodeName(n.id)+(n.on?' online':' lost signal'),n.on?'e-ok':'e-mid');S.prevOn.set(n.id,!!n.on);}
+  for(const id of [...S.nodes.keys()])if(!seen.has(id)){S.nodes.delete(id);S.hist.delete(id)}
+  S.links.clear();for(const l of f.links)S.links.set(l.id,{csi:l.csi,cdev:dev(S.cbase,l.id,l.csi,.004),pr:l.pr||0,ps:l.ps||0,mv:l.mv||0,tr:l.tr||0,dr:l.dr||0});
+  ui();
+}
+/* ---------- UI ---------- */
+const arc=$('#arc'),num=$('#num'),ring=$('#ring');
+function ui(){
+  const s=dispScore(S.score),col=s>70?'#ff2222':s>30?'#ffb000':'#00ff66';
+  document.documentElement.style.setProperty('--ringc',col);
+  arc.style.strokeDashoffset=(351.9*(1-s/100)).toFixed(1);num.textContent=s;
+  $('#state').textContent=s>70?'MANIFESTING':s>30?'STIRRING':'DORMANT';
+  $('#score').classList.toggle('hot',s>70);
+  {const hv=S.vector==='QUIET'&&s>30&&S.holdVec?S.holdVec:[S.vector,S.vecId];$('#vector').textContent=vecText(hv[0],hv[1],hv[2]||S.top);$('#vecwhy').textContent=vecWhy(hv[0],hv[1])}
+  document.documentElement.style.setProperty('--glitch',(clamp((s-25)/75,0,1)).toFixed(2));
+  const c=$('#c-link');c.className='chip '+(S.live?'on':'bad');c.textContent=S.live?'link live':(S.demo?'link none':'no link');
+  $('#c-nodes').textContent='nodes '+[...S.nodes.values()].filter(n=>n.on).length+'/'+S.nodes.size;
+  const p=$('#c-pair');p.className='chip '+(S.pairing?'warn':'');p.textContent=S.pairing?'pairing open':'pairing off';
+  $('#c-demo').classList.toggle('hide',!S.demo);
+  const rows=[...S.nodes.values()].sort((a,b)=>a.id-b.id).map(n=>{const l=S.links.get(n.id);
+    const w=clamp(Math.sqrt(n.p2p/ 60)*100,0,100);
+    const bt=n.vbat>0?'<span'+(n.vbat<3300?' class="warnc"':'')+'>'+(n.vbat/1000).toFixed(2)+'V '+battPct(n.vbat)+'%</span>':'-';
+    const ctl=n.id?(n.ctl?'<span class="warnc" title="Control probe: excluded from the score">CTRL</span>':'')+'<button class="mini" data-ctl="'+n.id+'" data-on="'+(n.ctl?1:0)+'">'+(n.ctl?'unset':'control')+'</button>'+(n.on?'':'<button class="mini" data-rm="'+n.id+'" title="Forget this probe: frees its slot, it must pair again">remove</button>'):'';
+    return '<tr class="'+(n.on?'':'off')+'"><td class="n" style="color:'+cOf(n.id)+'"><span class="dot" style="background:'+cOf(n.id)+'"></span>'+nodeName(n.id)+(n.tc?'<span class="touchb">TOUCH</span>':'')+ctl+
+    '</td><td data-l="State">'+(n.on?'ON':'LOST')+'</td><td class="bar-c" data-l="EMF" style="color:'+cOf(n.id)+'"><div class="bar"><i style="width:'+w.toFixed(0)+'%"></i></div></td><td data-l="Temp">'+
+    n.temp.toFixed(1)+'&deg;</td><td data-l="Batt">'+bt+'</td><td data-l="RSSI">'+(n.id?n.rssi:'-')+'</td><td data-l="Loss">'+(n.id?n.loss.toFixed(1)+'%':'-')+'</td><td data-l="CSI">'+(l?l.csi.toFixed(1):'-')+'</td></tr>'}).join('');
+  $('#nodes').innerHTML=rows||'<tr><td colspan="8" class="off">no nodes reporting</td></tr>';
+  $('#c-replay').classList.toggle('hide',!S.replay);
+  renderTags();renderDrift();
+  chartDirty=true;calNodes();
+}
+
+/* ---------- square map ---------- */
+// The four boards are the corners of a square (default: hub bottom-left, node 1 top-left, node 4 top-right, node 3 bottom-right).
+// Lines are the RF links (hub<->probe from the hub's detector, probe<->probe from /api/p2p/links), coloured by how disturbed they are.
+// The glow is every disturbed link smeared along its path: it peaks where several disturbed links cross. It is a rough area, not a point.
+const rc=$('#radar'),rx=rc.getContext('2d');let RW=560;
+function fit(c){const r=c.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);c.width=Math.round(r.width*d);c.height=Math.round(r.height*d);return d}
+let rd=1;function resize(){rd=fit(rc);RW=rc.width;fit(cc);chartDirty=true}
+const SQ_DEF={0:[-1,1],1:[-1,-1],4:[1,-1],3:[1,1],2:[0,-1],5:[0,1],6:[-1,0],7:[1,0]};
+let sqpos={};try{sqpos=JSON.parse(localStorage.getItem('sg.sqpos')||'{}')}catch(e){}
+function np(id){const p=sqpos[id];if(p)return p;const d=SQ_DEF[id]||[0,0];return{x:d[0],y:d[1]}}
+const SQK=.36;                                   // half side of the square as a share of the canvas
+const px=p=>({x:RW/2+p.x*RW*SQK,y:RW/2+p.y*RW*SQK});
+let heatT=0;
+const HEAT_HALF_MS=9000;   // a disturbance fades over ~30 s: it shows where the grid was disturbed, not where something stands
+function heatOf(k,v,dt){const o=S.heat||(S.heat=new Map());let h=o.get(k)||0;h=Math.max(v,h*Math.pow(.5,dt/HEAT_HALF_MS));o.set(k,h);return h}
+S.p2p=null;
+async function pollP2p(){try{const r=await fetch('/api/p2plinks',{cache:'no-store'});if(r.ok)S.p2p=await r.json()}catch(e){}}
+if(location.protocol!=='file:')setInterval(pollP2p,1000);
+// Where a still person probably is: the "shadow model" (offline test on the 2026-10-15/16 recordings: ~2.6 ft mean error, 5 positions, 11 stands;
+// always guessing the centre scores ~3.4 ft). A person shadows a path by about A*exp(-excess/wd), excess = how much longer the way via the
+// person is than the straight path (ft); for every candidate point on a 19 x 19 grid the amplitude A is fitted by least squares to the
+// observed RSSI drops and the point with the smallest residual wins. Only drops count (a person next to a node can raise the RSSI).
+// P[id]={x,y}, box={x0,y0,x1,y1} (canvas px), obs=[{a,b,o}] o = drop in dB >= 0, wd = path width in px.
+function shadowXY(P,obs,box,wd){
+  const N=19;let best=null;
+  for(let j=0;j<N;j++)for(let i=0;i<N;i++){
+    const x=box.x0+(.05+.9*i/(N-1))*(box.x1-box.x0),y=box.y0+(.05+.9*j/(N-1))*(box.y1-box.y0);let gg=0,go=0;const G=[];
+    for(const q of obs){const A=P[q.a],B=P[q.b],g=Math.exp(-(Math.hypot(x-A.x,y-A.y)+Math.hypot(x-B.x,y-B.y)-Math.hypot(A.x-B.x,A.y-B.y))/wd);G.push(g);gg+=g*g;go+=g*q.o}
+    const a=Math.max(go/Math.max(gg,1e-9),0);let r=0;for(let k=0;k<obs.length;k++){const e=a*G[k]-obs[k].o;r+=e*e}
+    if(!best||r<best.r)best={x,y,r,a}}
+  return best}
+const sdrop=new Map();let dotXY=null,dotSeen=0;
+function pathDrops(dt){   // one smoothed RSSI drop (dB, vs the learned baseline) per physical path: hub links from the live frame, probe pairs from /api/p2plinks (both directions averaged)
+  const raw=new Map(),add=(a,b,d)=>{d=+d||0;const k=Math.min(a,b)+'-'+Math.max(a,b),o=raw.get(k);if(o){o.s+=d;o.n++}else raw.set(k,{a:Math.min(a,b),b:Math.max(a,b),s:d,n:1})};
+  for(const n of S.nodes.values()){if(n.id===0||!n.on)continue;const l=S.links.get(n.id);if(l&&l.pr)add(0,n.id,l.dr)}
+  if(S.p2p&&S.p2p.links)for(const l of S.p2p.links)if(l.fresh&&l.cal)add(l.rx,l.tx,l.dr);
+  const al=1-Math.exp(-dt/3000),out=[];
+  for(const g of raw.values()){const k=g.a+'-'+g.b,v=g.s/g.n,o=sdrop.get(k),sm=o===undefined?v:o+(v-o)*al;sdrop.set(k,sm);out.push({a:g.a,b:g.b,o:Math.max(sm,0)})}
+  return out}
+function segments(hdt){   // [{a,b,v,pr,cal,tr,dr,key}] one per physical path; tr = temporal std / threshold, dr = RSSI drop in dB (the larger direction)
+  const m=new Map(),add=(a,b,v,pr,cal,tr,dr)=>{const k=Math.min(a,b)+'-'+Math.max(a,b),o=m.get(k);
+    if(!o)m.set(k,{a:Math.min(a,b),b:Math.max(a,b),v,pr,cal,tr:tr||0,dr:dr||0,key:k});else{o.v=Math.max(o.v,v);o.pr=Math.max(o.pr,pr);o.cal=o.cal||cal;o.tr=Math.max(o.tr,tr||0);o.dr=Math.max(o.dr,dr||0)}};
+  for(const n of S.nodes.values()){if(n.id===0||!n.on)continue;const l=S.links.get(n.id);
+    add(0,n.id,l?(l.pr?clamp(l.ps/70,0,1):clamp(l.cdev/14,0,1)):0,l?l.pr:0,!!(l&&l.pr),l?l.tr:0,l?l.dr:0)}
+  if(S.p2p&&S.p2p.links)for(const l of S.p2p.links){if(!l.fresh)continue;add(l.rx,l.tx,l.state>1?clamp(l.score/70,0,1):0,l.state,l.cal,l.tr,l.dr)}
+  const out=[...m.values()];for(const g of out)g.h=heatOf('s'+g.key,g.v,hdt);return out}
+function radar(t){
+  const hdt=Math.min(t-heatT,500);heatT=t;
+  const W=RW;rx.fillStyle='#020402';rx.fillRect(0,0,W,W);
+  const ids=[...S.nodes.values()].map(n=>n.id);if(!ids.includes(0))ids.push(0);
+  const pts=ids.map(id=>px(np(id)));
+  const x0=Math.min(...pts.map(q=>q.x)),x1=Math.max(...pts.map(q=>q.x)),y0=Math.min(...pts.map(q=>q.y)),y1=Math.max(...pts.map(q=>q.y));
+  const side=Math.max(x1-x0,y1-y0,W*.3);
+  // floor: the square and its 3 x 3 cells
+  rx.lineWidth=1;rx.strokeStyle='rgba(0,255,102,.22)';rx.strokeRect(x0,y0,x1-x0,y1-y0);
+  rx.strokeStyle='rgba(0,255,102,.09)';for(let i=1;i<3;i++){rx.beginPath();rx.moveTo(x0+(x1-x0)*i/3,y0);rx.lineTo(x0+(x1-x0)*i/3,y1);rx.moveTo(x0,y0+(y1-y0)*i/3);rx.lineTo(x1,y0+(y1-y0)*i/3);rx.stroke()}
+  const seg=segments(hdt).filter(g=>ids.includes(g.a)&&ids.includes(g.b));   // a link to a board this dashboard does not list is not drawn
+  const P=id=>px(np(id));
+  // glow: each disturbed link smeared along its path; the peak is where several cross
+  const G=28,cw=(x1-x0)/G,ch=(y1-y0)/G,sg=side*.11;let peak=0,px_=0,py_=0,nact=0;
+  for(const g of seg)if(g.h>.3)nact++;
+  const act=seg.filter(g=>g.h>.05);
+  if(act.length){
+    for(let j=0;j<G;j++)for(let i=0;i<G;i++){
+      const cx_=x0+(i+.5)*cw,cy_=y0+(j+.5)*ch;let v=0;
+      for(const g of act){const A=P(g.a),B=P(g.b),dx=B.x-A.x,dy=B.y-A.y,L2=dx*dx+dy*dy||1,u=clamp(((cx_-A.x)*dx+(cy_-A.y)*dy)/L2,0,1),ex=A.x+dx*u-cx_,ey=A.y+dy*u-cy_;v+=g.h*Math.exp(-(ex*ex+ey*ey)/(2*sg*sg))}
+      if(v>peak){peak=v;px_=cx_;py_=cy_}
+      if(v>.06){rx.fillStyle='rgba(255,70,40,'+Math.min(.55,v*.4).toFixed(3)+')';rx.fillRect(x0+i*cw,y0+j*ch,cw+1,ch+1)}
+    }
+  }
+  // links
+  for(const g of seg){const A=P(g.a),B=P(g.b),h=g.h,hot=g.pr>=3;
+    rx.globalAlpha=g.cal||g.a===0||g.b===0?1:.45;
+    rx.strokeStyle=h>.05?(hot?'#ff3b30':'#ffb000'):'rgba(0,255,102,.38)';
+    rx.lineWidth=(1.5+h*4)*rd;rx.beginPath();rx.moveTo(A.x,A.y);rx.lineTo(B.x,B.y);rx.stroke();rx.globalAlpha=1
+    if(g.cal||g.a===0||g.b===0){   // the real numbers behind the colour: noise / threshold ("x1.0" = at the threshold) and RSSI drop (1.5 dB = shadowed)
+      const u=.36,lx=A.x+(B.x-A.x)*u,ly=A.y+(B.y-A.y)*u,mv=g.tr>=1,sh=g.dr>=1.5;
+      rx.font=(11*rd)+'px ui-monospace,monospace';rx.textAlign='center';rx.fillStyle=sh?'#ff3b30':mv?'#ffb000':'rgba(0,255,102,.7)';
+      rx.fillText('x'+g.tr.toFixed(1)+' '+(g.dr>=0?'-':'+')+Math.abs(g.dr).toFixed(1)+'dB',lx,ly-5*rd);rx.textAlign='left'}}
+  // where: the shadow-model dot for a STILL person (needs the alarm on, >= 3 paths and a drop of 1.5 dB or more on one); a rough guess, shown with a wide halo
+  {const obs=pathDrops(hdt).filter(q=>ids.includes(q.a)&&ids.includes(q.b)),mx=Math.max(0,...obs.map(q=>q.o));
+   if(S.score>30&&obs.length>=3&&mx>=1.5){const bst=shadowXY(Object.fromEntries(ids.map(id=>[id,P(id)])),obs,{x0,y0,x1,y1},side*.15);
+     const al=1-Math.exp(-hdt/700);dotXY=dotXY?{x:dotXY.x+(bst.x-dotXY.x)*al,y:dotXY.y+(bst.y-dotXY.y)*al}:{x:bst.x,y:bst.y};dotSeen=t}
+   else if(dotXY&&t-dotSeen>3000)dotXY=null;
+   if(dotXY){const fade=clamp(1-(t-dotSeen)/3000,0,1);rx.globalAlpha=fade;rx.fillStyle='rgba(255,255,255,.10)';rx.strokeStyle='rgba(255,255,255,.45)';rx.lineWidth=1.5*rd;
+     rx.beginPath();rx.arc(dotXY.x,dotXY.y,side*.26,0,7);rx.fill();rx.stroke();rx.fillStyle='#fff';rx.shadowColor='#fff';rx.shadowBlur=10*rd;rx.beginPath();rx.arc(dotXY.x,dotXY.y,6*rd,0,7);rx.fill();rx.shadowBlur=0;rx.globalAlpha=1}}
+  // boards
+  for(const id of ids){const n=S.nodes.get(id),p=P(id),col=cOf(id),on=!n||n.on;rx.globalAlpha=on?1:.3;
+    const he=n?heatOf('e'+id,clamp((n.edev||0)/8,0,1),0):0;
+    if(he>.05){rx.strokeStyle='rgba(255,40,40,'+(he*.8).toFixed(3)+')';rx.lineWidth=2*rd;rx.beginPath();rx.arc(p.x,p.y,(15+he*14)*rd,0,7);rx.stroke()}
+    rx.fillStyle='#020402';rx.strokeStyle=col;rx.lineWidth=2*rd;rx.beginPath();
+    if(id===0)rx.rect(p.x-10*rd,p.y-10*rd,20*rd,20*rd);else rx.arc(p.x,p.y,9*rd,0,7);
+    rx.fill();rx.stroke();rx.fillStyle=col;rx.beginPath();rx.arc(p.x,p.y,3.5*rd,0,7);rx.fill();
+    rx.font=(12*rd)+'px ui-monospace,monospace';rx.textAlign=p.x<RW/2?'left':'right';rx.fillText(nodeName(id),p.x+(p.x<RW/2?15:-15)*rd,p.y+(p.y<RW/2?-14:22)*rd);rx.textAlign='left';rx.globalAlpha=1}
+  charts(); requestAnimationFrame(radar);
+}
+// drag nodes (saved on this device)
+let drag=null;
+rc.addEventListener('pointerdown',e=>{const r=rc.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*RW,y=(e.clientY-r.top)/r.height*RW;
+  let best=null,bd=1e9;for(const n of S.nodes.values()){const p=px(np(n.id)),d=Math.hypot(p.x-x,p.y-y);if(d<bd){bd=d;best=n.id}}
+  if(best!==null&&bd<32*rd){drag=best;rc.setPointerCapture(e.pointerId)}});
+rc.addEventListener('pointermove',e=>{if(drag===null)return;const r=rc.getBoundingClientRect();
+  sqpos[drag]={x:clamp(((e.clientX-r.left)/r.width*RW-RW/2)/(RW*SQK),-1.4,1.4),y:clamp(((e.clientY-r.top)/r.height*RW-RW/2)/(RW*SQK),-1.4,1.4)}});
+rc.addEventListener('pointerup',()=>{if(drag!==null){try{localStorage.setItem('sg.sqpos',JSON.stringify(sqpos))}catch(e){}drag=null}});
+
+/* ---------- strip chart ---------- */
+const cc=$('#chart'),cx=cc.getContext('2d');let chartDirty=true;
+function charts(){ if(!chartDirty)return;chartDirty=false;
+  const W=cc.width,H=cc.height;cx.fillStyle='#020402';cx.fillRect(0,0,W,H);cx.strokeStyle='rgba(0,255,102,.1)';cx.lineWidth=1;
+  for(let i=1;i<5;i++){cx.beginPath();cx.moveTo(0,H*i/5);cx.lineTo(W,H*i/5);cx.stroke()}
+  const k=S.chart;let mx=k==='emf'?20:(k==='temp'?.3:10);const series=[];
+  if(k==='csi'){return csiChart(W,H)}
+  for(const [id,h] of S.hist){const a=h[k];series.push([id,a]);for(const v of a)mx=Math.max(mx,Math.abs(v))}
+  for(const [id,a] of series){cx.strokeStyle=cOf(id);cx.shadowColor=cOf(id);cx.shadowBlur=6;cx.lineWidth=1.6*rd;cx.beginPath();
+    a.forEach((v,i)=>{const x=i/(HN-1)*W,y=k==='emf'?H-4-(v/mx)*(H-8):H/2-(v/mx)*(H/2-6);i?cx.lineTo(x,y):cx.moveTo(x,y)});cx.stroke()}
+  cx.shadowBlur=0;
+}
+const csiHist=new Map();
+function csiChart(W,H){let mx=10;for(const [id,l] of S.links){let h=csiHist.get(id);if(!h){h=[];csiHist.set(id,h)}h.push(l.csi);if(h.length>HN)h.shift();for(const v of h)mx=Math.max(mx,v)}
+  for(const [id,h] of csiHist){if(!S.links.has(id))continue;cx.strokeStyle=cOf(id);cx.shadowColor=cOf(id);cx.shadowBlur=6;cx.lineWidth=1.6*rd;cx.beginPath();
+    h.forEach((v,i)=>{const x=i/(HN-1)*W,y=H-4-(v/mx)*(H-8);i?cx.lineTo(x,y):cx.moveTo(x,y)});cx.stroke()}cx.shadowBlur=0}
+for(const [b,k,t] of [['#b-emf','emf','EMF p2p / 10 s'],['#b-temp','temp','Thermal change / 3 s'],['#b-csi','csi','RF link variance']])
+  $(b).onclick=()=>{S.chart=k;$('#chartmode').textContent=t;for(const x of['#b-emf','#b-temp','#b-csi'])$(x).classList.toggle('on',x===b);chartDirty=true};
+
+/* ---------- audio ---------- */
+const A={ctx:null,on:false,geiger:true,drone:false,vol:.55};
+function audioInit(){ if(A.ctx)return;const C=window.AudioContext||window.webkitAudioContext;if(!C)return;A.ctx=new C();
+  A.master=A.ctx.createGain();A.master.gain.value=A.vol;A.master.connect(A.ctx.destination);
+  const len=A.ctx.sampleRate;A.noise=A.ctx.createBuffer(1,len,A.ctx.sampleRate);const d=A.noise.getChannelData(0);for(let i=0;i<len;i++)d[i]=Math.random()*2-1;
+  // drone: 40 Hz square through a resonant bandpass tracking RF disturbance
+  A.osc=A.ctx.createOscillator();A.osc.type='square';A.osc.frequency.value=40;A.bp=A.ctx.createBiquadFilter();A.bp.type='bandpass';A.bp.Q.value=14;A.bp.frequency.value=140;
+  A.dg=A.ctx.createGain();A.dg.gain.value=0;A.osc.connect(A.bp).connect(A.dg).connect(A.master);A.osc.start();
+}
+function burst(freq,q,dur,gain,type){const c=A.ctx,t=c.currentTime,s=c.createBufferSource();s.buffer=A.noise;s.loopStart=0;const f=c.createBiquadFilter();f.type=type||'bandpass';f.frequency.value=freq;f.Q.value=q;
+  const g=c.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(gain,t+.004);g.gain.exponentialRampToValueAtTime(.0001,t+dur);s.connect(f).connect(g).connect(A.master);s.start(t,Math.random()*.8,dur+.02)}
+function originNode(){let b=0,id=0;for(const n of S.nodes.values())if(n.on&&n.edev>b){b=n.edev;id=n.id}return id}
+function geigerTick(){ if(A.on&&A.geiger){const s=S.score;const rate=.6+Math.pow(s/100,1.6)*38;
+    if(Math.random()<rate/40){const id=originNode();burst(1200+id*420,.7,.018,.5,'highpass')}}
+}
+let lastT=performance.now();
+setInterval(()=>{const now=performance.now(),dt=(now-lastT)/1000;lastT=now;if(!A.ctx)return;
+  if(A.on){geigerTick()}
+  let csi=0;for(const l of S.links.values())csi=Math.max(csi,l.csi);
+  const tt=A.ctx.currentTime;A.bp.frequency.setTargetAtTime(110+csi*18,tt,.1);
+  A.dg.gain.setTargetAtTime(A.on&&A.drone?Math.min(.5,.04+S.score/100*.45):0,tt,.2);
+},25);
+$('#b-audio').onclick=function(){audioInit();if(!A.ctx)return;A.on=!A.on;if(A.on)A.ctx.resume();this.classList.toggle('on',A.on);this.textContent=A.on?'Mute':'Enable audio';$('#audiost').textContent=A.on?'live':'muted'};
+for(const [b,k] of [['#b-geiger','geiger'],['#b-drone','drone']])$(b).onclick=function(){A[k]=!A[k];this.classList.toggle('on',A[k])};
+$('#b-drone').classList.remove('on');
+$('#vol').oninput=e=>{A.vol=e.target.value/100;if(A.master)A.master.gain.value=A.vol};
+
+/* ---------- pairing ---------- */
+$('#b-pair').onclick=()=>{ if(S.demo){S.pairing=true;log('Pairing window open (demo)');setTimeout(()=>{S.pairing=false},8000);return}
+  fetch('/api/pair',{method:'POST'}).then(r=>r.ok?log('Pairing window requested'):log('Pairing request failed','e-mid')).catch(()=>log('Pairing request failed','e-mid'))};
+
+/* ---------- transport ---------- */
+let ws=null,retry=500,gotData=false;
+function connect(){ if(location.protocol==='file:'){startDemo();return}
+  try{ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws')}catch(e){return}
+  ws.onopen=()=>{S.live=true;retry=500;log('Link established','e-ok');ui();postTime();histLoad()};
+  ws.onmessage=e=>{try{const j=JSON.parse(e.data);if(j.ev){addEvent(j.ev);if(j.ev.type==='touch')toast(j.ev.text,'t');return}gotData=true;if(S.demo)stopDemo();if(S.replay)return;apply(j)}catch(x){}};
+  ws.onclose=()=>{S.live=false;ui();setTimeout(connect,retry);retry=Math.min(retry*1.6,5000)};
+  ws.onerror=()=>ws.close();
+  setTimeout(()=>{if(!gotData&&!S.demo)startDemo()},2500);
+}
+/* ---------- demo generator (no hardware needed) ---------- */
+let demoT=null,dt0=0;
+function startDemo(){ if(S.demo)return;S.demo=true;log('No link: showing demo data');dt0=performance.now();
+  demoT=setInterval(()=>{const t=(performance.now()-dt0)/1000,ph=t%34,r=()=>Math.random();
+    let e1=4+r()*3,e2=3+r()*2,csi=9+r()*2,sc=6,vec='QUIET',vid=-1;
+    if(ph>10&&ph<15){e1=45+r()*40;sc=48+r()*10;vec='LOCAL_NODE';vid=1}
+    else if(ph>=17&&ph<22){csi=40+r()*22;sc=52+r()*14;vec='BARRIER_BREACH';vid=1}
+    else if(ph>=26&&ph<31){e1=60+r()*30;e2=50+r()*35;csi=45+r()*25;sc=82+r()*14;vec='GRID_ANOMALY';vid=-1}
+    apply({score:Math.round(sc),vector:vec,vec_id:vid,pairing:S.pairing,nodes:[
+      {id:0,on:1,emf:15000,p2p:3+r()*2,temp:31.2+Math.sin(t/9)*.2,d_temp:Math.sin(t/7)*.05,vbat:0,ctl:0},
+      {id:1,on:1,emf:15100,p2p:e1,temp:29.8,d_temp:(ph>=33?-.4:Math.sin(t/5)*.03),rssi:-48,loss:.4,vbat:3900-Math.round(t)%50,ctl:0},
+      {id:2,on:ph<24||ph>27,emf:15050,p2p:e2,temp:30.1,d_temp:0,rssi:-61,loss:2.1,vbat:3260,ctl:S.demoCtl2?1:0}],tags:(ph>=19&&ph<28)?[{k:'hvac',note:'furnace',left:Math.round((28-ph)*20)}]:[],drift:(ph>=12&&ph<20)?[{id:1,r:'antenna'}]:[],
+      links:[{id:1,csi:csi},{id:2,csi:9+r()*2}]})},50);}
+function stopDemo(){clearInterval(demoT);S.demo=false;S.nodes.clear();S.hist.clear();log('Live data');}
+
+/* ---------- calibration (spec 9.2 item 5) ---------- */
+const CAL_S=30;let calPending=null,calTimer=null,calNodesKey='';
+S.cal={s:'idle',left:0};
+const nz=(v,d)=>v==null?'-':(+v).toFixed(d);
+function setCal(c){const prev=S.cal.s;S.cal=c;
+  if(c.s==='pending'&&prev!=='pending'){log('Calibration capture complete: review and accept','e-mid');loadPending()}
+  if(c.s==='idle')calPending=null;
+  renderCal()}
+function loadPending(){ if(S.demo){return}
+  fetch('/api/calibration').then(r=>r.json()).then(j=>{calPending=j.pending||[];renderCal()}).catch(()=>log('Could not load calibration result','e-mid'))}
+function chanRow(id,label,ch,ok,warn){ if(!ch)return '';
+  const before=ch.prev_sd||ch.prev_mean?'&mu; '+nz(ch.prev_mean,1)+' &sigma; '+nz(ch.prev_sd,1):'-';
+  const after=ok?'&mu; '+nz(ch.mean,1)+' &sigma; '+nz(ch.sd,1)+' max '+nz(ch.max,0):'<span class="warnc">no data ('+ch.n+' samples)</span>';
+  return '<tr><td style="color:'+cOf(id)+'">'+nodeName(id)+' '+label+(warn&&ok?' <span class="warnc" title="Disturbance during capture">&#9888;</span>':'')+'</td><td>'+before+'</td><td>'+after+'</td><td>'+(ok?nz(ch.scale,1):'-')+'</td></tr>'}
+function presRow(p){const q=p.pres;   // CSI presence calibration: motion threshold and the RSSI the shadow test compares against
+  return '<tr><td style="color:'+cOf(p.id)+'">'+nodeName(p.id)+' RF'+(q.warn&&q.ok?' <span class="warnc" title="Movement during capture">&#9888;</span>':'')+'</td><td>quiet max '+q.max.toFixed(4)+'</td><td>'+
+    (q.ok?'motion &gt; '+q.thr.toFixed(4):'<span class="warnc">no data ('+q.n+' windows)</span>')+'</td><td>'+(q.ok?q.rssi.toFixed(1)+' dB':'-')+'</td></tr>'}
+function presSummary(){ // what the detector learned from the capture, in plain terms
+  return (calPending||[]).filter(p=>p.pres).map(p=>{const q=p.pres,n=nodeName(p.id);
+    if(!q.ok)return '<div class="warnc">'+n+': not enough data ('+q.n+' windows). Is the probe online?</div>';
+    return '<div'+(q.warn?' class="warnc"':'')+'><b>'+n+'</b>: quiet level '+q.med.toFixed(4)+', motion threshold <b>'+q.thr.toFixed(4)+'</b> ('+(q.thr/q.med).toFixed(2)+' x), baseline signal <b>'+q.rssi.toFixed(1)+' dB</b>, '+q.n+' windows'+(q.warn?'. &#9888; Movement was detected during the capture: stay out of the room and redo it.':'. Looks quiet.')+'</div>'}).join('')}
+function loadApplied(){ if(S.demo||location.protocol==='file:')return;
+  fetch('/api/calibration').then(r=>r.json()).then(j=>{const a=(j.applied||[]).filter(x=>x.pres&&x.id>0);
+    $('#calcur').innerHTML=a.length?a.map(x=>'In force, '+nodeName(x.id)+': motion threshold '+x.pres.thr.toFixed(4)+', baseline '+x.pres.rssi.toFixed(1)+' dB (calibrated '+x.pres.q0.toFixed(4)+' / '+x.pres.r0.toFixed(1)+'; learns slowly)'+(x.pres.drift?' <span class="warnc">&#9888; drifted past its limits: recalibrate</span>':'')).join('<br>'):'No detector calibration yet: run one with the room empty.'}).catch(()=>{})}
+setInterval(loadApplied,30000);setTimeout(loadApplied,2500);
+function renderCal(){const c=S.cal;
+  $('#calst').textContent=c.s==='capturing'?'capturing':c.s==='pending'?'review':'idle';
+  $('#calbar').classList.toggle('hide',c.s!=='capturing');
+  $('#calfill').style.width=(clamp(1-c.left/CAL_S,0,1)*100).toFixed(0)+'%';
+  $('#caltext').textContent='Keep the area still... '+Math.ceil(c.left)+' s';
+  $('#calres').classList.toggle('hide',!(c.s==='pending'&&calPending));
+  $('#b-calstart').disabled=c.s!=='idle';renderDrift();
+  if(c.s==='pending'&&calPending){$('#calsum').innerHTML=presSummary()}
+  if(c.s==='pending'&&calPending)$('#calbody').innerHTML=calPending.map(p=>chanRow(p.id,'EMF',p.emf,p.emf_ok,p.warn)+(p.pres?'':chanRow(p.id,'RF',p.csi,p.csi_ok,p.warn))).join('')||'<tr><td colspan="4" class="warnc">nothing measured: no node was online</td></tr>'}
+function calNodes(){const ids=[...S.nodes.keys()].sort((a,b)=>a-b),key=ids.join(',');if(key===calNodesKey)return;calNodesKey=key;
+  const sel=$('#cal-node'),cur=sel.value;sel.innerHTML='<option value="all">all nodes</option>'+ids.map(i=>'<option value="'+i+'">'+nodeName(i)+'</option>').join('');
+  if([...sel.options].some(o=>o.value===cur))sel.value=cur}
+function post(url,okmsg){return fetch(url,{method:'POST'}).then(r=>r.json().then(j=>({ok:r.ok,j}))).then(x=>{log(x.ok?okmsg:(x.j.error||'request failed'),x.ok?'':'e-mid');toast(x.ok?okmsg:(x.j.error||'request failed'),x.ok?0:1);return x.ok}).catch(()=>{log('Request failed','e-mid');toast('Request failed',1);return false})}
+$('#b-calstart').onclick=()=>{const node=$('#cal-node').value,sens=$('#cal-sens').value;
+  if(node!=='all'&&!S.demo&&S.nodes.size>1)toast('Only '+nodeName(+node)+' will be recalibrated: the other links keep their old calibration',1);
+  if(S.demo){setCal({s:'capturing',left:CAL_S});log('Calibration started (demo)');let l=CAL_S;clearInterval(calTimer);calTimer=setInterval(()=>{l-=.5;if(l>0)setCal({s:'capturing',left:l});else{clearInterval(calTimer);
+    calPending=[...S.nodes.keys()].filter(i=>node==='all'||+node===i).map(i=>({id:i,warn:i===2?1:0,emf_ok:true,emf:{n:300,mean:4.2+i,sd:1.1,max:i===2?58:9,scale:13.2,prev_mean:3.9,prev_sd:1.4},csi_ok:i>0,csi:i>0?{n:300,mean:11.8,sd:2.4,max:19,scale:28.8,prev_mean:10.5,prev_sd:3}:null}));setCal({s:'pending',left:0})}},500);return}
+  post('/api/calibrate?node='+node+'&sens='+sens,'Calibration capture started: keep the area still').then(ok=>{if(ok)setCal({s:'capturing',left:CAL_S})})};
+$('#b-calok').onclick=()=>{const warn=(calPending||[]).filter(p=>p.warn);
+  if(warn.length&&!confirm('A disturbance was detected during capture on: '+warn.map(p=>nodeName(p.id)).join(', ')+'. Apply anyway?'))return;
+  if(S.demo){log('Calibration accepted (demo)','e-ok');setCal({s:'idle',left:0});return}
+  post('/api/calibrate/accept','Calibration accepted and stored').then(ok=>{if(ok){setCal({s:'idle',left:0});setTimeout(loadApplied,1500)}})};
+$('#b-caldiscard').onclick=()=>{ if(S.demo){log('Calibration discarded (demo)');setCal({s:'idle',left:0});return}
+  post('/api/calibrate/discard','Calibration discarded').then(ok=>{if(ok)setCal({s:'idle',left:0})})};
+$('#b-calreset').onclick=()=>{const node=$('#cal-node').value;if(!confirm('Reset '+(node==='all'?'ALL nodes':nodeName(+node))+' to default calibration?'))return;
+  if(S.demo){log('Calibration reset (demo)');return}
+  post('/api/calibrate/reset?node='+node,'Calibration reset to defaults')};
+
+/* ---------- shared helpers: battery, toast, event log from the hub ---------- */
+const battPct=mv=>mv<=3300?0:mv>=4200?100:Math.round((mv-3300)*100/900);
+let toastT=null;
+function toast(msg,lv){const t=$('#toast');t.textContent=msg;t.className=lv==='t'?'touch':lv>1?'hot':lv===1?'mid':'';t.style.display='block';clearTimeout(toastT);toastT=setTimeout(()=>t.style.display='none',5000)}
+const EVC={vector:'',alert:'e-hi',node_up:'e-ok',node_down:'e-mid',pairing:'',calibration:'',tag:'e-tag',drift:'e-mid',battery:'e-mid',control:'e-tag',system:'e-sys',touch:'e-touch'};
+function evTime(ev){let ms=null;if(ev.epoch>0)ms=ev.epoch*1000;else if(ev.t>0&&S.hubOff!==undefined)ms=S.hubOff+ev.t;return ms===null?'--:--:--':new Date(ms).toTimeString().slice(0,8)}
+/* Display-only wording: the stored/exported event text (CSV, field analysis) is unchanged. */
+function evPretty(ev){const t=ev.text||'';let m;
+  if(ev.type==='vector'){m=t.match(/^([A-Z_]+?)(?: node (\d+))?( \(hub radio\?\))?$/);
+    if(m){const id=m[2]!==undefined?+m[2]:-1;return vecText(m[1],id)+(m[3]?' (the hub\'s Wi-Fi radio was active just before, which can disturb its EMF wire)':'')}}
+  if(ev.type==='alert'){m=t.match(/^alert: score (\d+)$/);if(m)return'Alert: score reached '+m[1]+' of 100 (alerts start at 71)';if(t==='alert cleared')return'Alert cleared: score fell below 55'}
+  if(ev.type==='node_down'&&(m=t.match(/^node (\d+) lost signal$/)))return nodeName(+m[1])+' lost signal: no packets received (check its power and range)';
+  if(ev.type==='node_up'&&(m=t.match(/^node (\d+) online$/)))return nodeName(+m[1])+' online';
+  if(t==='hub sensor fault')return'Hub sensor fault: the hub\'s own EMF/thermal reading is invalid';
+  if(t==='hub sensor recovered')return'Hub sensor recovered';
+  if(ev.type==='battery'&&(m=t.match(/^node (\d+) battery ([\d.]+) V$/)))return nodeName(+m[1])+' battery low: '+m[2]+' V';
+  return t}
+function addEvent(ev){ if(ev.seq&&ev.seq<=S.evSeq)return; if(ev.seq)S.evSeq=ev.seq;
+  const d=document.createElement('div'),b=document.createElement('b');b.textContent=evTime(ev);
+  d.appendChild(b);d.appendChild(document.createTextNode(evPretty(ev)));       // textContent only: tag notes come from whoever can reach the hub
+  let c=EVC[ev.type]||'';if(ev.type==='vector'&&ev.text.indexOf('QUIET')!==0)c=ev.score>70?'e-hi':'e-mid';if(ev.type==='vector'&&ev.text.indexOf('QUIET')===0)c='e-ok';if(c)d.className=c;
+  logEl.prepend(d);while(logEl.children.length>80)logEl.lastChild.remove()}
+S.evSeq=0;S.replay=false;S.drift=[];S.tags=[];S.driftDismissed=new Set();
+function histLoad(){fetch('/api/events?limit=60').then(r=>r.json()).then(j=>{(j.events||[]).forEach(addEvent)}).catch(()=>{})}
+
+const TH=[0.5,0.75,1.0,2.0,3.0];
+function thShow(g){const i=TH.indexOf(g);$('#th-sl').value=i<0?2:i;$('#thval').textContent='needs '+g.toFixed(2).replace(/0$/,'')+' &deg;C cooling in 3 s'.replace('&deg;','\u00b0')+(g===1?' (default)':'')}
+function thLoad(){fetch('/api/thermal').then(r=>r.json()).then(j=>{S.thGate=Math.round(j.gate*100)/100;thShow(S.thGate)}).catch(()=>{})}
+$('#th-sl').oninput=()=>thShow(TH[+$('#th-sl').value]);
+$('#th-sl').onchange=()=>{const g=TH[+$('#th-sl').value];S.thGate=g;post('/api/thermal?gate='+g,'Thermal sensitivity saved: '+g+' \u00b0C in 3 s')};
+function thLive(){let m=0;for(const n of S.nodes.values())m=Math.max(m,-n.d_temp);$('#thlive').textContent='Biggest cooling over the last 3 s right now: '+m.toFixed(2)+' \u00b0C (counts above the value set here)'}
+setInterval(()=>{if(!$('#view-settings').classList.contains('hide'))thLive()},1000);
+thLoad();
+function postTime(){fetch('/api/time?ms='+Date.now(),{method:'POST'}).catch(()=>{})}
+
+/* ---------- tags + control probe ---------- */
+const TAGS=[['hvac','HVAC'],['phone','Phone near'],['appliance','Appliance'],['person','Person'],['pet','Pet'],['other','Other'],['note','Note']];
+const CSIL=[['empty','Empty'],['cross','Cross line'],['near','Walk near'],['far','Walk far'],['stand_on','Stand on line'],['sit_off','Sit off line'],['car','Car moves'],['door','Door moves']];
+const SQL=[['sq_empty','Empty room'],['sq_center','Centre'],['sq_mid_bottom','Mid bottom'],['sq_mid_left','Mid left'],['sq_mid_top','Mid top'],['sq_mid_right','Mid right'],['sq_near_hub','Near hub'],['sq_near_far','Near far corner'],['sq_walk_bottom','Walk bottom'],['sq_walk_left','Walk left'],['sq_walk_top','Walk top'],['sq_walk_cross','Walk diagonal'],['sq_walk_free','Walk free']];
+const EMFL=[['emf_quiet','EMF quiet'],['hub_hand30','Hub hand 30 cm'],['hub_hand10','Hub hand 10 cm'],['hub_touch','Hub touch wire'],['probe_hand30','Probe hand 30 cm'],['probe_hand10','Probe hand 10 cm'],['probe_touch','Probe touch wire']];
+$('#csicbtns').innerHTML=CSIL.map(t=>'<button data-csil="'+t[0]+'">'+t[1]+'</button>').join('')+'<div class="hint" style="width:100%;margin:6px 0 0">Square test (hub bottom-left)</div>'+SQL.map(t=>'<button data-csil="'+t[0]+'">'+t[1]+'</button>').join('')+'<div style="width:100%;margin:6px 0 0;display:flex;gap:6px"><input id="csifree" maxlength="24" placeholder="custom label" style="flex:1;min-width:0"><button id="csifreego">label</button></div>'+'<div class="hint" style="width:100%;margin:6px 0 0">EMF wire test (see EMF_TEST.md)</div>'+EMFL.map(t=>'<button data-csil="'+t[0]+'">'+t[1]+'</button>').join('');
+$('#csicbtns').onclick=e=>{let k=e.target.dataset&&e.target.dataset.csil;
+  if(e.target.id==='csifreego'){k=$('#csifree').value.trim().replace(/[^A-Za-z0-9_-]/g,'_').slice(0,24);if(!k)return;$('#csifree').value=''}
+  if(!k)return;
+  for(const b of $('#csicbtns').children)b.classList.toggle('on',b===e.target);
+  fetch('/api/csi/label?l='+k,{method:'POST'}).then(r=>toast(r.ok?'Label: '+k:'Capture is not running',r.ok?0:1)).catch(()=>toast('Label failed',1))};
+function csiPoll(){ if(S.demo||location.protocol==='file:')return;
+  fetch('/api/csi/status').then(r=>r.json()).then(j=>$('#csicp').classList.toggle('hide',!j.on)).catch(()=>{})}
+function fldPoll(){ if(S.demo||location.protocol==='file:')return;
+  fetch('/api/field/status').then(r=>r.json()).then(j=>{$('#fldp').classList.remove('hide');
+    $('#fldst').textContent=j.full?'full':j.on?'logging':'off';
+    $('#b-fldon').classList.toggle('on',!!j.on);$('#b-fldon').disabled=!!j.on;$('#b-fldoff').disabled=!j.on;
+    $('#fldinfo').textContent=(j.bytes/1048576).toFixed(2)+' MB logged, '+(j.free/1048576).toFixed(1)+' MB free'+(j.on?', about '+j.minutes_left+' min left':'')+(j.drops?', '+j.drops+' records dropped':'')}).catch(()=>{})}
+function fldPost(u,msg){fetch(u,{method:'POST'}).then(r=>{toast(r.ok?msg:'Request failed',r.ok?0:1);fldPoll();csiPoll()}).catch(()=>toast('Request failed',1))}
+$('#b-fldon').onclick=()=>{fldPost('/api/field/start','Field log started');setTimeout(postTime,800)};   // CLOCK record: maps hub uptime to wall time in the log
+setInterval(()=>{if(!S.demo&&location.protocol!=='file:')postTime()},300000);
+$('#b-fldoff').onclick=()=>fldPost('/api/field/stop','Field log stopped');
+$('#b-flderase').onclick=()=>{if(confirm('Erase the field log on the hub?'))fldPost('/api/field/erase?confirm=1','Field log erased')};
+setInterval(()=>{csiPoll();fldPoll()},5000);csiPoll();fldPoll();
+$('#tagbtns').innerHTML=TAGS.map(t=>'<button data-tag="'+t[0]+'">'+t[1]+'</button>').join('');
+$('#tagbtns').onclick=e=>{const k=e.target.dataset&&e.target.dataset.tag;if(!k)return;
+  const dur=$('#tag-dur').value,note=$('#tag-note').value.trim();
+  if(S.demo){S.tags=[{k:k,note:note,left:+dur||0}].filter(x=>x.left);log('Tag '+k+(note?': '+note:'')+' (demo)');renderTags();return}
+  fetch('/api/tag?kind='+k+'&dur='+(k==='note'?0:dur)+'&note='+encodeURIComponent(note),{method:'POST'}).then(r=>{if(!r.ok)log('Tag rejected','e-mid');else $('#tag-note').value=''}).catch(()=>log('Tag request failed','e-mid'))};
+function renderTags(){const el=$('#tagchips');
+  el.innerHTML=(S.tags||[]).map(t=>'<span class="tagchip" data-clear="'+t.k+'" title="click to clear">'+t.k+(t.note?': '+t.note.replace(/[<>&"]/g,''):'')+' '+Math.floor(t.left/60)+':'+String(t.left%60).padStart(2,'0')+' &times;</span>').join('');
+  const hot=S.score>30&&(S.tags||[]).length;if(hot)el.innerHTML+='<span class="hint" style="margin:0">possibly explained</span>'}
+$('#tagchips').onclick=e=>{const k=e.target.dataset&&e.target.dataset.clear;if(k&&!S.demo)fetch('/api/tag/clear?kind='+k,{method:'POST'})};
+$('#nodes').onclick=e=>{const rm=e.target.dataset&&e.target.dataset.rm;
+  if(rm){if(!confirm('Remove '+nodeName(+rm)+'? It is forgotten and must pair again.'))return;
+    if(S.demo){S.nodes.delete(+rm);ui();return}
+    fetch('/api/unpair?id='+rm,{method:'POST'}).then(r=>log(r.ok?'Removed '+nodeName(+rm):'Remove failed','e-mid')).catch(()=>log('Remove failed','e-mid'));return}
+  const id=e.target.dataset&&e.target.dataset.ctl;if(!id)return;const on=e.target.dataset.on==='1';
+  if(S.demo){const n=S.nodes.get(+id);if(n){n.ctl=on?0:1;ui()}return}
+  fetch('/api/control?node='+(on?'none':id),{method:'POST'}).catch(()=>log('Control request failed','e-mid'))};
+
+/* ---------- drift prompts ---------- */
+const DR={moved:'all of its links sit 2+ dB off their calibrated level: if nobody is there, the board was moved or bumped',antenna:'its RF baseline changed: antenna or board moved?',noise:'background RF noise changed',uncalibrated:'not calibrated yet, using default thresholds'};
+function renderDrift(){const el=$('#driftbar'),c=S.cal;
+  if(c.s!=='idle'){el.innerHTML='<div class="dr"><span>'+(c.s==='capturing'?'&#9679; Calibrating: keep the area still... '+Math.ceil(c.left)+' s':'&#9679; Calibration captured: review and accept')+'</span><button data-dgo="1">Show</button></div>';return}
+  const act=(S.drift||[]).filter(d=>!S.driftDismissed.has(d.id+':'+d.r));
+  el.innerHTML=act.map(d=>'<div class="dr"><span>&#9888; Calibration suggested: '+nodeName(d.id)+' ('+(DR[d.r]||d.r)+')</span><button data-dcal="'+d.id+'">Calibrate '+nodeName(d.id)+'</button><button data-ddis="'+d.id+':'+d.r+'">Dismiss</button></div>').join('')}
+$('#driftbar').onclick=e=>{if(e.target.dataset&&e.target.dataset.dgo){$('#calp').scrollIntoView({behavior:'smooth'});return}
+  const c=e.target.dataset&&e.target.dataset.dcal,x=e.target.dataset&&e.target.dataset.ddis;
+  if(x){S.driftDismissed.add(x);renderDrift()}
+  if(c!==undefined&&c!==''){const sel=$('#cal-node');sel.value=c;$('#calp').scrollIntoView({behavior:'smooth'});$('#b-calstart').click()}};
+
+/* ---------- vibration, notifications, title flash ---------- */
+const AL={lastLevel:0,cool:{},flashT:null};
+const alLevel=s=>s>70?2:s>30?1:0;
+function alerts(score){const lv=alLevel(score),up=lv>AL.lastLevel;AL.lastLevel=lv;if(!up)return;
+  const now=Date.now();if(now-(AL.cool[lv]||0)<20000)return;AL.cool[lv]=now;
+  const msg=(lv>1?'Manifesting: ':'Stirring: ')+vecText(S.vector,S.vecId,S.top);toast(msg,lv);
+  if($('#al-vib').checked&&navigator.vibrate)navigator.vibrate(lv>1?[200,100,200,100,400]:[120]);
+  if($('#al-notif').checked&&'Notification'in window&&Notification.permission==='granted'){try{new Notification('SpectralGrid',{body:msg,tag:'sg'})}catch(e){}}
+  if($('#al-flash').checked&&document.hidden&&!AL.flashT){let on=0;AL.flashT=setInterval(()=>{document.title=(on^=1)?'⚠ '+msg:'SpectralGrid'},900)}}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&AL.flashT){clearInterval(AL.flashT);AL.flashT=null;document.title='SpectralGrid'}});
+(function(){const st=[];
+  if(!navigator.vibrate)st.push('vibration not supported here (iOS has none)');
+  if(!('Notification'in window)||!window.isSecureContext)st.push('system notifications need a secure context: on plain http:// browsers refuse them (spec section 12, item 21); in-page alerts still work');
+  $('#alst').textContent=st.join('; ');
+  if(!navigator.vibrate)$('#al-vib').disabled=true;
+  if(!('Notification'in window)||!window.isSecureContext)$('#al-notif').disabled=true;
+  $('#al-notif').onchange=function(){if(this.checked&&Notification.permission==='default')Notification.requestPermission().then(p=>{if(p!=='granted')this.checked=false})};
+  try{for(const k of['vib','notif','flash']){const v=localStorage.getItem('sg.al.'+k);if(v!==null&&!$('#al-'+k).disabled)$('#al-'+k).checked=v==='1';$('#al-'+k).addEventListener('change',e=>localStorage.setItem('sg.al.'+k,e.target.checked?'1':'0'))}}catch(e){}
+})();
+
+/* ---------- EVP recorder (phone microphone; clips stay in this browser) ---------- */
+const EVP={on:false,stream:null,busy:false,last:0,db:null};
+const evpOK=()=>!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder);
+$('#evpnote').textContent=evpOK()?'Clips are stored in this browser only. Auto-record starts a 20 s clip when the score crosses the chosen level (60 s cooldown). Raw audio: no echo cancel, noise suppression or auto gain.':
+  (window.isSecureContext?'This browser has no microphone recording support.':'Microphone access is blocked on plain http:// pages: browsers only allow it on secure contexts. Options are in SpectralGrid.md section 12, item 21 (Chrome flag, or HTTPS).');
+if(!evpOK())$('#b-evparm').disabled=true;
+const idb=()=>new Promise((res,rej)=>{if(EVP.db)return res(EVP.db);const r=indexedDB.open('sg-evp',1);r.onupgradeneeded=()=>r.result.createObjectStore('clips',{keyPath:'id',autoIncrement:true});r.onsuccess=()=>{EVP.db=r.result;res(EVP.db)};r.onerror=()=>rej(r.error)});
+const idbAll=()=>idb().then(db=>new Promise(res=>{const q=db.transaction('clips').objectStore('clips').getAll();q.onsuccess=()=>res(q.result||[]);q.onerror=()=>res([])}));
+async function evpSave(blob,meta){const db=await idb();await new Promise(res=>{const tx=db.transaction('clips','readwrite');tx.objectStore('clips').add({...meta,blob});tx.oncomplete=res;tx.onerror=res});
+  const all=await idbAll();if(all.length>20){await new Promise(res=>{const tx=db.transaction('clips','readwrite');all.slice(0,all.length-20).forEach(c=>tx.objectStore('clips').delete(c.id));tx.oncomplete=res})}}
+async function evpRender(){const all=(await idbAll().catch(()=>[])).reverse();
+  $('#evpclips').innerHTML='';
+  for(const c of all){const d=document.createElement('div');d.className='clip';
+    const url=URL.createObjectURL(c.blob),ext=(c.blob.type||'').includes('mp4')?'m4a':'webm';
+    d.innerHTML='<div></div><audio controls preload="none"></audio><a class="btn" style="margin-top:4px;padding:3px 8px" download>save</a> <button class="mini" data-del="'+c.id+'">delete</button>';
+    d.firstChild.textContent=new Date(c.t).toLocaleTimeString()+' | score '+c.score+' | '+c.vector+' | '+c.secs+' s';
+    d.querySelector('audio').src=url;const a=d.querySelector('a');a.href=url;a.download='evp_'+c.t+'.'+ext;$('#evpclips').appendChild(d)}}
+$('#evpclips').onclick=async e=>{const id=e.target.dataset&&e.target.dataset.del;if(!id)return;const db=await idb();db.transaction('clips','readwrite').objectStore('clips').delete(+id).onsuccess=evpRender};
+async function evpRecord(secs,why){ if(EVP.busy||!EVP.stream)return;EVP.busy=true;$('#evpst').textContent='recording';
+  const mime=['audio/webm;codecs=opus','audio/webm','audio/mp4'].find(m=>MediaRecorder.isTypeSupported(m))||'';
+  const rec=new MediaRecorder(EVP.stream,mime?{mimeType:mime}:{}),chunks=[],meta={t:Date.now(),score:S.score,vector:S.vector+(S.vecId>=0?' '+S.vecId:''),secs:secs};
+  rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+  rec.onstop=async()=>{EVP.busy=false;$('#evpst').textContent='armed';await evpSave(new Blob(chunks,{type:rec.mimeType||mime||'audio/webm'}),meta);log('EVP clip saved ('+why+', score '+meta.score+', '+meta.vector+')','e-tag');evpRender()};
+  rec.start();setTimeout(()=>{if(rec.state==='recording')rec.stop()},secs*1000)}
+function evpAuto(score){const th=+$('#evp-th').value;if(!EVP.on||EVP.busy||score<th||Date.now()-EVP.last<60000)return;EVP.last=Date.now();evpRecord(20,'auto')}
+$('#b-evparm').onclick=async function(){ if(EVP.on){EVP.stream.getTracks().forEach(t=>t.stop());EVP.on=false;EVP.stream=null;this.textContent='Arm recorder';this.classList.remove('on');$('#b-evprec').disabled=true;$('#evpst').textContent='off';return}
+  try{EVP.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});EVP.on=true;this.textContent='Disarm';this.classList.add('on');$('#b-evprec').disabled=false;$('#evpst').textContent='armed';log('EVP recorder armed','e-tag')}
+  catch(e){log('Microphone unavailable: '+(e&&e.name||e),'e-mid')}};
+$('#b-evprec').onclick=()=>evpRecord(20,'manual');
+if(window.indexedDB)evpRender();
+
+/* ---------- session replay (from the hub's 2 Hz recording) ---------- */
+const R={info:null,frames:[],i:0,timer:null,lastT:0};
+const repT=t=>R.info?R.info.oldest_ms+(R.info.newest_ms-R.info.oldest_ms)*t/1000:0;
+function repFmt(ms){const o=R.info&&R.info.epoch_known?new Date(ms+R.info.epoch_off_ms).toLocaleTimeString():'T+'+Math.round(ms/1000)+' s';return o}
+async function repFetch(from){const j=await (await fetch('/api/session/frames?limit=100&from='+Math.floor(from))).json();R.frames=j.frames||[];R.i=0}
+function repShow(){const f=R.frames[R.i];if(!f)return false;R.lastT=f.t;apply(f);
+  const span=R.info.newest_ms-R.info.oldest_ms||1;$('#rep-slider').value=Math.round((f.t-R.info.oldest_ms)/span*1000);$('#reptime').textContent=repFmt(f.t)+' of '+repFmt(R.info.newest_ms);return true}
+async function repStep(){ if(R.i>=R.frames.length){await repFetch(R.lastT+1);if(!R.frames.length){repPause();return}}
+  repShow();R.i++}
+function repPause(){clearInterval(R.timer);R.timer=null;$('#b-repplay').textContent='Play'}
+function repLive(){repPause();S.replay=false;$('#b-replive').disabled=true;ui()}
+$('#b-repload').onclick=async()=>{ if(S.demo){$('#repinfo').textContent='needs a hub';return}
+  try{R.info=await (await fetch('/api/session/info')).json()}catch(e){log('Could not load session info','e-mid');return}
+  if(!R.info.count){$('#repinfo').textContent='nothing recorded yet';return}
+  $('#repinfo').textContent=R.info.count+' frames';$('#rep-slider').disabled=false;$('#b-repplay').disabled=false;$('#reptime').textContent=repFmt(R.info.oldest_ms)+' to '+repFmt(R.info.newest_ms)};
+$('#rep-slider').oninput=async e=>{if(!R.info)return;S.replay=true;$('#b-replive').disabled=false;repPause();await repFetch(repT(+e.target.value));if(repShow())R.i++};
+$('#b-repplay').onclick=function(){ if(R.timer){repPause();return}
+  S.replay=true;$('#b-replive').disabled=false;this.textContent='Pause';const sp=+$('#rep-speed').value;R.timer=setInterval(repStep,500/sp)};
+$('#rep-speed').onchange=()=>{if(R.timer){repPause();$('#b-repplay').click()}};
+$('#b-replive').onclick=repLive;
+
+/* ---------- boot ---------- */
+(function grain(){const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d'),im=g.createImageData(128,128);for(let i=0;i<im.data.length;i+=4){const v=Math.random()*255;im.data[i]=im.data[i+1]=im.data[i+2]=v;im.data[i+3]=255}g.putImageData(im,0,0);$('#grain').style.backgroundImage='url('+c.toDataURL()+')'})();
+$('#title').dataset.t='SPECTRALGRID';
+addEventListener('resize',resize);resize();ui();renderCal();requestAnimationFrame(radar);connect();
+/* ---------- probe updates (link-gated OTA) ---------- */
+let otaCfgShown=false;
+function otaPoll(){ if(S.demo||location.protocol==='file:'||location.hash!=='#settings')return;
+  const sel=$('#ota-node'),ids=[...S.nodes.keys()].filter(i=>i>0).sort((a,b)=>a-b);
+  if(ids.length&&sel.options.length!==ids.length){const cur=sel.value;sel.innerHTML=ids.map(i=>'<option value="'+i+'">'+nodeName(i)+'</option>').join('');if(ids.includes(+cur))sel.value=cur}
+  fetch('/api/ota/probe/status?node='+(sel.value||1)).then(r=>r.json()).then(j=>{
+    $('#otast').textContent=j.armed?'armed':(j.window?'window open':'idle');
+    $('#ota-fw').textContent=j.fw?('image stored: '+(j.fw.size/1024).toFixed(0)+' KB, md5 '+j.fw.md5.slice(0,8)):'no image stored';
+    const m=Math.floor(j.stable_s/60),s=j.stable_s%60,nm=Math.floor(j.need_s/60),ns=j.need_s%60;
+    $('#ota-stat').textContent=(j.armed?'ARMED, expires in '+Math.round(j.expires_s/60)+' min. ':'')+'link '+(j.online?j.rssi.toFixed(0)+' dBm, spread '+j.spread.toFixed(1)+' dB, loss '+j.loss.toFixed(1)+'%':'offline')+'; stable '+m+':'+String(s).padStart(2,'0')+' of '+nm+':'+String(ns).padStart(2,'0')+(j.blockers.length?'. Waiting: '+j.blockers.join(', '):'. Ready.')+(j.window?' OTA window open ('+j.window_left_s+' s).':' OTA window closed.');
+    if(!otaCfgShown||document.activeElement.tagName!=='INPUT'){if(!otaCfgShown){$('#og-gate').value=j.cfg.gate;$('#og-stable').value=(j.cfg.stable/60).toFixed(1).replace(/\.0$/,'');$('#og-spread').value=j.cfg.spread;$('#og-loss').value=j.cfg.loss;otaCfgShown=true}}
+  }).catch(()=>{})}
+function otaPost(u,msg,body){fetch(u,{method:'POST',body}).then(r=>r.json().then(j=>({ok:r.ok,j}))).then(x=>{toast(x.ok?msg:(x.j.error||'request failed'),x.ok?0:1);otaPoll()}).catch(()=>toast('Request failed',1))}
+$('#b-otaup').onclick=()=>{const f=$('#ota-file').files[0];if(!f){toast('Choose the probe firmware .bin first',1);return}const fd=new FormData();fd.append('file',f,f.name);toast('Uploading '+(f.size/1024).toFixed(0)+' KB...',0);otaPost('/api/fw/probe','Image stored',fd)};
+$('#b-otaarm').onclick=()=>otaPost('/api/ota/probe/arm?node='+$('#ota-node').value,'Armed: the update is sent once the link is stable');
+$('#b-otacancel').onclick=()=>otaPost('/api/ota/probe/cancel','Cancelled');
+$('#b-ogsave').onclick=()=>otaPost('/api/ota/gate?gate='+$('#og-gate').value+'&stable='+Math.round($('#og-stable').value*60)+'&spread='+$('#og-spread').value+'&loss='+$('#og-loss').value,'Saved');
+setInterval(otaPoll,2000);
+
+/* ---------- views ---------- */
+function showView(v){const st=v==='settings';
+  $('#view-main').classList.toggle('hide',st);$('#view-settings').classList.toggle('hide',!st);
+  $('#tab-main').classList.toggle('on',!st);$('#tab-set').classList.toggle('on',st);
+  if(!st){resize();chartDirty=true}window.scrollTo(0,0)}
+addEventListener('hashchange',()=>showView(location.hash==='#settings'?'settings':'main'));
+showView(location.hash==='#settings'?'settings':'main');
+
+})();
+</script>
+</body>
+</html>

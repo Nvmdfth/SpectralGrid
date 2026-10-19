@@ -1,0 +1,7 @@
+.pio/
+.vscode/
+hub/src/gen/
+shared/ota_secret.h
+__pycache__/
+*.pyc
+captures/

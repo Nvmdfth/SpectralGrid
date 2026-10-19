@@ -1,0 +1,97 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>SpectralGrid banner</title>
+<style>
+/* Source for assets/banner.jpg. Render:
+   chromium --headless=new --no-sandbox --hide-scrollbars --window-size=1600,460 --virtual-time-budget=3000 --screenshot=banner.png file://$PWD/assets/banner.html */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1600px;height:460px;background:#030603;overflow:hidden;font-family:ui-monospace,"Cascadia Mono","Courier New",monospace;color:#bfffd6}
+.bg{position:absolute;inset:0;background:
+  radial-gradient(ellipse 60% 90% at 78% 50%,rgba(0,255,102,.10),transparent 70%),
+  radial-gradient(ellipse 50% 70% at 12% 40%,rgba(255,34,34,.06),transparent 70%),
+  #030603}
+.grid{position:absolute;inset:0;background-image:linear-gradient(rgba(0,255,102,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,102,.05) 1px,transparent 1px);background-size:40px 40px;
+  mask-image:linear-gradient(90deg,transparent,#000 30%,#000 100%)}
+.scan{position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(0,0,0,.34) 0 1px,transparent 1px 3px);mix-blend-mode:multiply;z-index:30}
+.vig{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,transparent 50%,rgba(0,0,0,.9) 100%);z-index:31}
+#grain{position:absolute;inset:0;opacity:.08;z-index:29}
+.brk{position:absolute;width:46px;height:46px;border:3px solid #0a7a3a;z-index:20}
+.tl{left:22px;top:22px;border-right:0;border-bottom:0}.tr{right:22px;top:22px;border-left:0;border-bottom:0}
+.bl{left:22px;bottom:22px;border-right:0;border-top:0}.br{right:22px;bottom:22px;border-left:0;border-top:0}
+
+.title{position:absolute;left:84px;top:104px;z-index:10}
+h1{font-size:110px;line-height:1;font-weight:800;letter-spacing:.15em;color:#00ff66;position:relative;white-space:nowrap;
+  text-shadow:0 0 18px rgba(0,255,102,.7),0 0 60px rgba(0,255,102,.35)}
+h1 i{font-style:normal;position:absolute;left:0;top:0;width:100%;overflow:hidden;white-space:nowrap}
+h1 .r{color:#ff2222;transform:translate(-6px,0);clip-path:inset(22% 0 70% 0);text-shadow:none;opacity:.85}
+h1 .c{color:#00e5ff;transform:translate(6px,0);clip-path:inset(68% 0 24% 0);text-shadow:none;opacity:.85}
+h1 .g{color:#fff;transform:translate(0,0);clip-path:inset(46% 0 48% 0);text-shadow:none;opacity:.9;mix-blend-mode:overlay}
+.rune{margin:6px 0 0 6px;color:#0a7a3a;letter-spacing:.9em;font-size:20px}
+.tag{margin:14px 0 0 6px;color:#7fe0a6;font-size:23px;letter-spacing:.26em;text-transform:uppercase}
+.tag b{color:#ff4444;font-weight:400}
+.chips{margin:30px 0 0 6px;display:flex;gap:12px}
+.chip{border:1px solid #0a7a3a;padding:7px 14px;font-size:17px;letter-spacing:.2em;color:#00ff66;background:rgba(0,20,8,.7);text-transform:uppercase}
+.chip.a{color:#ffb000;border-color:#6b4a00}.chip.c{color:#00e5ff;border-color:#00606b}
+
+.radar{position:absolute;right:92px;top:40px;width:380px;height:380px;z-index:8}
+.ring{position:absolute;border:2px solid rgba(0,255,102,.28);border-radius:50%}
+.cross{position:absolute;background:rgba(0,255,102,.25)}
+.sweep{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0deg,transparent 250deg,rgba(0,255,102,.05) 290deg,rgba(0,255,102,.55) 359deg,transparent 360deg);transform:rotate(-28deg)}
+.arm{position:absolute;left:50%;top:50%;width:190px;height:2px;background:#00ff66;transform-origin:0 50%;transform:rotate(-28deg);box-shadow:0 0 12px #00ff66}
+.node{position:absolute;width:20px;height:20px;border-radius:50%;border:3px solid;background:#020402;transform:translate(-50%,-50%)}
+.node:after{content:"";position:absolute;inset:4px;border-radius:50%;background:currentColor}
+.blip{position:absolute;border-radius:50%;background:rgba(255,50,50,.85);box-shadow:0 0 16px rgba(255,50,50,.9);transform:translate(-50%,-50%)}
+svg.beam{position:absolute;inset:0;overflow:visible}
+
+.trace{position:absolute;left:0;right:0;bottom:34px;height:84px;z-index:6;opacity:.9}
+.stats{position:absolute;right:92px;bottom:20px;z-index:32;font-size:15px;letter-spacing:.3em;color:#2fb86a;text-transform:uppercase}
+.stats b{color:#ff4444;font-weight:400}
+</style></head>
+<body>
+<div class="bg"></div><div class="grid"></div>
+<canvas id="grain" width="400" height="115"></canvas>
+
+<svg class="trace" viewBox="0 0 1600 84" preserveAspectRatio="none" id="trace"></svg>
+
+<div class="radar" id="radar">
+  <div class="ring" style="inset:0"></div><div class="ring" style="inset:63px"></div><div class="ring" style="inset:126px"></div>
+  <div class="cross" style="left:50%;top:0;bottom:0;width:2px"></div><div class="cross" style="top:50%;left:0;right:0;height:2px"></div>
+  <div class="sweep"></div><div class="arm"></div>
+  <svg class="beam" viewBox="0 0 380 380"><g fill="none" stroke-width="3">
+    <ellipse cx="143" cy="215" rx="82" ry="22" transform="rotate(-48 143 215)" stroke="#00e5ff" opacity=".35"/>
+    <path id="b1" stroke="#00e5ff" d=""/>
+    <path id="b2" stroke="#ffb000" d=""/></g></svg>
+  <div class="node" style="left:190px;top:190px;color:#00ff66;border-color:#00ff66;width:26px;height:26px"></div>
+  <div class="node" style="left:78px;top:312px;color:#00e5ff;border-color:#00e5ff"></div>
+  <div class="node" style="left:262px;top:62px;color:#ffb000;border-color:#ffb000"></div>
+  <div class="blip" style="left:284px;top:236px;width:16px;height:16px"></div>
+  <div class="blip" style="left:132px;top:126px;width:10px;height:10px;opacity:.7"></div>
+  <div class="blip" style="left:318px;top:150px;width:7px;height:7px;opacity:.5"></div>
+</div>
+
+<div class="title">
+  <h1>SPECTRALGRID<i class="r">SPECTRALGRID</i><i class="c">SPECTRALGRID</i><i class="g">SPECTRALGRID</i></h1>
+  <div class="rune">&dagger; &Dagger; &dagger; &Dagger; &dagger;</div>
+  <div class="tag">listening for what <b>shouldn't</b> be there</div>
+  <div class="chips"><span class="chip">EMF</span><span class="chip c">RF / CSI</span><span class="chip a">Thermal</span><span class="chip">ESP32-S3 &middot; Mesh</span></div>
+</div>
+<div class="stats">SCORE <b>84</b> &nbsp;//&nbsp; MANIFESTING</div>
+
+<div class="brk tl"></div><div class="brk tr"></div><div class="brk bl"></div><div class="brk br"></div>
+<div class="scan"></div><div class="vig"></div>
+<script>
+// deterministic pseudo-random so every render is identical
+let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+(function(){const c=document.getElementById('grain'),g=c.getContext('2d'),im=g.createImageData(400,115);
+ for(let i=0;i<im.data.length;i+=4){const v=rnd()*255;im.data[i]=im.data[i+1]=im.data[i+2]=v;im.data[i+3]=255}g.putImageData(im,0,0);
+ c.style.width='1600px';c.style.height='460px';c.style.imageRendering='pixelated'})();
+(function(){ // strip chart: quiet noise, then a disturbance
+  const mk=(y0,amp,col,spikeAt)=>{let d='';for(let x=0;x<=1600;x+=4){const spike=x>spikeAt&&x<spikeAt+520?1:0;
+    const y=y0-(rnd()*amp*(spike?9:1))-(spike?Math.abs(Math.sin(x/9))*amp*3:0)+(rnd()*2);d+=(x?'L':'M')+x+' '+y.toFixed(1)}
+    return '<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="2.2" style="filter:drop-shadow(0 0 5px '+col+')"/>'};
+  document.getElementById('trace').innerHTML=mk(70,3,'#00ff66',640)+mk(66,2.2,'#00e5ff',700)+mk(72,1.8,'#ffb000',760);
+  const w=(id,x0,y0,x1,y1,amp)=>{let d='';const N=40,dx=x1-x0,dy=y1-y0,L=Math.hypot(dx,dy),nx=-dy/L,ny=dx/L;
+    for(let k=0;k<=N;k++){const u=k/N,o=Math.sin(u*16)*amp*Math.sin(u*Math.PI)+(amp>8?(rnd()-.5)*amp:0);
+      d+=(k?'L':'M')+(x0+dx*u+nx*o).toFixed(1)+' '+(y0+dy*u+ny*o).toFixed(1)}document.getElementById(id).setAttribute('d',d)};
+  w('b1',190,190,78,312,5);w('b2',190,190,262,62,13)})();
+</script>
+</body></html>
