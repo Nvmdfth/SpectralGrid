@@ -8,6 +8,7 @@ outside both PlatformIO projects (`hub/` and `probe/`), so neither build can com
 | :--- | :--- | :--- |
 | `live_dashboard.jpg` | The full dashboard, idle, hub only | Real hub (flashed ESP32-S3) |
 | `live_replay.jpg` | Session replay playing (REPLAY chip, scrubber), event log with real events, tag chip | Real hub |
+| `live_square_map.jpg` | Square map during a walk-through: six paths, one red, person dot | Real hub |
 | `live_drift.jpg` | "Calibration suggested" banner after 5 min uncalibrated | Real hub |
 | `live_mobile_full.jpg` | Phone-width layout, full page | Real hub |
 | `live_calibration_review.jpg` | Calibration review with real measurements (earlier layout) | Real hub |

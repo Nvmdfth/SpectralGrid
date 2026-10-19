@@ -23,6 +23,8 @@
 
 ## 👁 Screenshots
 
+<p align="center"><img src="screenshots/live_square_map.jpg" alt="Square map on the live hub with a person between probe 1 and the centre" width="520"><br><sub><b>Square map, live hub.</b> Four boards, six paths. A walk-through: the probe 1 to probe 3 path turns red, and the dot is the hub's estimate of where the person is.</sub></p>
+
 <table>
 <tr>
 <td width="50%"><img src="screenshots/demo_alarm.jpg" alt="Alarm state"><br><sub><b>Manifesting.</b> Grid-wide anomaly: the score ring goes red, the title glitches and the links shatter. (Demo data; the earlier radar view, since replaced by the square map.)</sub></td>

@@ -197,7 +197,8 @@ bool calibration_pending_quiet(const char **why) {
     bool any = false;
     for (int id = 0; id < SCORE_N; id++) {
         if (cal.pending[id].emf.valid || cal.pending[id].csi.valid || ppend[id].valid) any = true;
-        if (cal.pending[id].warn || ppend[id].warn) { *why = "movement during the capture"; return false; }
+        // id 0 is the hub's own EMF wire only: its spikes are supply noise and it cannot see people (EMF_TEST.md), so it never vetoes.
+        if ((id != 0 && cal.pending[id].warn) || ppend[id].warn) { *why = "movement during the capture"; return false; }
     }
     { bool pw; if (p2p_cal_pending_info(&pw)) { any = true; if (pw) { *why = "movement during the capture"; return false; } } }
     if (!any) { *why = "no node had enough data"; return false; }
