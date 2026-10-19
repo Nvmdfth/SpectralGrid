@@ -41,21 +41,7 @@ More in [`screenshots/`](./screenshots/README.md). They sit outside both firmwar
 
 ## 🛰 How it works
 
-```mermaid
-flowchart LR
-    subgraph SQ["the room: boards at the corners"]
-        direction TB
-        P1["PROBE 1"] --- P4["PROBE 4"]
-        P1 --- P3["PROBE 3"]
-        P4 --- P3
-    end
-    P1 -- "ESP-NOW · ch 6<br/>slotted, ~50 fps" --> H
-    P3 --> H
-    P4 --> H
-    H["HUB<br/>CSI per path · presence<br/>path fusion · calibration<br/>SoftAP + WebSocket"] -- "802.11 AP · JSON" --> B["BROWSER<br/>square map · CRT dashboard<br/>Web Audio"]
-    classDef n fill:#050805,stroke:#00ff66,color:#bfffd6;
-    class P1,P3,P4,H,B n;
-```
+<p align="center"><img src="assets/how_it_works.svg" alt="Hub and three probes at the corners of a square: six paths (three hub-probe, three probe-probe) feed one alarm; the hub serves the dashboard to a browser over its Wi-Fi AP" width="100%"></p>
 
 Every pair of boards is a **path**. The hub measures Wi-Fi channel state (CSI) on the frames each probe sends it; the probes also hear **each other's** broadcasts and send the hub a short summary of every probe-to-probe link. With a hub and three probes in a square that is **6 physical paths** (sides and diagonals), each one a tripwire.
 

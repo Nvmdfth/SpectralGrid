@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 400" width="760" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#00e5ff"/>
+    </marker>
+  </defs>
+  <rect width="760" height="400" rx="12" fill="#050805"/>
+
+  <!-- the room -->
+  <rect x="24" y="24" width="372" height="300" rx="8" fill="#0a140c" stroke="#1f6b3a" stroke-dasharray="4 4"/>
+  <text x="38" y="44" fill="#ffb000" font-size="13">THE ROOM (~3 m square)</text>
+
+  <!-- 6 paths: hub<->probe solid, probe<->probe dashed -->
+  <g stroke="#00ff66" stroke-width="2.5" fill="none">
+    <line x1="95" y1="270" x2="95" y2="95"/>
+    <line x1="95" y1="270" x2="325" y2="270"/>
+    <line x1="95" y1="270" x2="325" y2="95"/>
+  </g>
+  <g stroke="#00ff66" stroke-width="2" stroke-dasharray="7 5" fill="none" opacity="0.8">
+    <line x1="95" y1="95" x2="325" y2="95"/>
+    <line x1="325" y1="95" x2="325" y2="270"/>
+    <line x1="95" y1="95" x2="325" y2="270"/>
+  </g>
+
+  <!-- boards -->
+  <g font-size="13" text-anchor="middle">
+    <rect x="45" y="75" width="100" height="40" rx="5" fill="#050805" stroke="#00ff66"/>
+    <text x="95" y="100" fill="#bfffd6">PROBE 1</text>
+    <rect x="275" y="75" width="100" height="40" rx="5" fill="#050805" stroke="#00ff66"/>
+    <text x="325" y="100" fill="#bfffd6">PROBE 4</text>
+    <rect x="275" y="250" width="100" height="40" rx="5" fill="#050805" stroke="#00ff66"/>
+    <text x="325" y="275" fill="#bfffd6">PROBE 3</text>
+    <rect x="40" y="246" width="110" height="48" rx="5" fill="#050805" stroke="#ffb000" stroke-width="2"/>
+    <text x="95" y="275" fill="#ffb000" font-weight="bold">HUB</text>
+  </g>
+
+  <!-- hub to browser -->
+  <path d="M95,294 V356 H590 V232" fill="none" stroke="#00e5ff" stroke-width="2" marker-end="url(#ah)"/>
+  <text x="300" y="349" fill="#00e5ff" font-size="12" text-anchor="middle">Wi-Fi AP · WebSocket JSON</text>
+
+  <rect x="480" y="168" width="220" height="62" rx="5" fill="#050805" stroke="#00e5ff"/>
+  <g font-size="13" text-anchor="middle" fill="#bfffd6">
+    <text x="590" y="192" fill="#00e5ff" font-weight="bold">BROWSER</text>
+    <text x="590" y="212">square map · CRT · audio</text>
+  </g>
+
+  <!-- legend -->
+  <g font-size="12" fill="#bfffd6">
+    <line x1="420" y1="44" x2="456" y2="44" stroke="#00ff66" stroke-width="2.5"/>
+    <text x="466" y="48">hub ↔ probe: CSI on each</text>
+    <text x="466" y="64">probe's ESP-NOW frames, ~50 fps</text>
+    <line x1="420" y1="92" x2="456" y2="92" stroke="#00ff66" stroke-width="2" stroke-dasharray="7 5"/>
+    <text x="466" y="96">probe ↔ probe: probes measure</text>
+    <text x="466" y="112">each other, report to the hub</text>
+    <text x="420" y="142" fill="#ffb000">6 paths, one presence detector each,</text>
+    <text x="420" y="158" fill="#ffb000">fused into one alarm on the hub</text>
+  </g>
+</svg>
