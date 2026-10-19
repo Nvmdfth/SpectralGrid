@@ -357,7 +357,7 @@ function dispScore(raw){const now=Date.now(),dt=Math.min(now-(S.dispT||now),1000
   else if(now>(S.dispHold||0))S.disp=Math.max(raw,S.disp-dt*DISP_DECAY);
   return Math.round(S.disp)}
 function apply(f){
-  S.score=f.score|0;S.top=[f.top|0,f.top_v|0,f.top_id===undefined?-1:f.top_id];if(f.vector&&f.vector!=='QUIET')S.holdVec=[f.vector,f.vec_id,S.top];if(f.t!==undefined&&!S.replay)S.hubOff=Date.now()-f.t;S.drift=f.drift||[];S.tags=f.tags||[];if(!S.replay)alerts(S.score);evpAuto(S.score);
+  S.score=f.score|0;S.top=[f.top|0,f.top_v|0,f.top_id===undefined?-1:f.top_id];if(f.vector&&f.vector!=='QUIET')S.holdVec=[f.vector,f.vec_id,S.top];if(f.t!==undefined&&!S.replay)S.hubOff=Date.now()-f.t;S.drift=f.drift||[];S.tags=f.tags||[];if(!S.replay)alerts(S.score,f.vector||S.vector,f.vec_id===undefined?S.vecId:f.vec_id);evpAuto(S.score);
   if(!S.demo){ if(f.cal)setCal({s:f.cal.s,left:f.cal.left}); else if(S.cal.s!=='idle')setCal({s:'idle',left:0}) }
   if(f.vector!==S.vector||f.vec_id!==S.vecId){ if(f.vector!=='QUIET'||S.vector!=='QUIET') if(S.demo)log(f.vector==='QUIET'?'Grid quiet':'<span>'+vecText(f.vector,f.vec_id,S.top)+'</span>',f.vector==='QUIET'?'e-ok':(f.score>70?'e-hi':'e-mid')); S.vector=f.vector;S.vecId=f.vec_id;}
   if(!!f.pairing!==S.pairing){S.pairing=!!f.pairing;if(S.demo)log(S.pairing?'Pairing window open':'Pairing window closed')}
@@ -566,16 +566,31 @@ function connect(){ if(location.protocol==='file:'){startDemo();return}
 let demoT=null,dt0=0;
 function startDemo(){ if(S.demo)return;S.demo=true;log('No link: showing demo data');dt0=performance.now();
   demoT=setInterval(()=>{const t=(performance.now()-dt0)/1000,ph=t%34,r=()=>Math.random();
-    let e1=4+r()*3,e2=3+r()*2,csi=9+r()*2,sc=6,vec='QUIET',vid=-1;
-    if(ph>10&&ph<15){e1=45+r()*40;sc=48+r()*10;vec='LOCAL_NODE';vid=1}
-    else if(ph>=17&&ph<22){csi=40+r()*22;sc=52+r()*14;vec='BARRIER_BREACH';vid=1}
-    else if(ph>=26&&ph<31){e1=60+r()*30;e2=50+r()*35;csi=45+r()*25;sc=82+r()*14;vec='GRID_ANOMALY';vid=-1}
+    // hub + probes 1, 3, 4 in the default square. 9-16 s someone walks across (motion on the diagonals), 17-23 s they stand still
+    // near probe 1 (paths through that corner shadowed: the map's still-person dot), 23-25 s probe 4 drops out, 26-31 s grid anomaly.
+    const walk=ph>9&&ph<16,stand=ph>=17&&ph<23,grid=ph>=26&&ph<31,on4=ph<23||ph>25;
+    const path=k=>{   // detector state for one physical path: st 1 clear, 2 motion, 3 on the line; sc score; tr noise/threshold; dr RSSI drop (dB)
+      const q={st:1,sc:0,tr:.55+r()*.3,dr:(r()-.5)*.4};
+      if(walk&&(k==='0-4'||k==='1-3'||k==='3-4')){q.st=2;q.sc=45+r()*15;q.tr=1.3+r()*.6}
+      if(stand&&(k==='1-3'||k==='0-1'||k==='1-4')){q.st=3;q.sc=70+r()*8;q.dr=k==='1-3'?3.2+r()*.4:2.1+r()*.4}
+      if(stand&&(k==='0-4'||k==='0-3'))q.dr=.4+r()*.3;
+      if(grid){q.st=2;q.sc=60+r()*30;q.tr=1.6+r()*1.2}
+      return q};
+    let e1=4+r()*3,e3=3+r()*2,e4=3+r()*2,sc=6,vec='QUIET',vid=-1;
+    if(walk){sc=50+r()*10;vec='ROOM_MOTION';vid=4}
+    else if(stand){sc=68+r()*8;vec='LINE_BREAK';vid=1}
+    else if(grid){e1=60+r()*30;e3=50+r()*35;e4=45+r()*30;sc=82+r()*14;vec='GRID_ANOMALY';vid=-1}
+    const hl=id=>{const q=path('0-'+id);return{id,csi:5+r()*2+(q.st>1?30:0),pr:q.st,ps:Math.round(q.sc),mv:q.st===2?1:0,tr:q.tr,dr:q.dr}};
+    const pl=(rx,tx)=>{const q=path(Math.min(rx,tx)+'-'+Math.max(rx,tx));return{rx,tx,cal:true,fresh:rx!==4&&tx!==4||on4,state:q.st,score:Math.round(q.sc),tr:q.tr,dr:q.dr}};
+    S.p2p={enabled:true,links:[pl(1,3),pl(3,1),pl(1,4),pl(4,1),pl(3,4),pl(4,3)]};
     apply({score:Math.round(sc),vector:vec,vec_id:vid,pairing:S.pairing,nodes:[
-      {id:0,on:1,emf:15000,p2p:3+r()*2,temp:31.2+Math.sin(t/9)*.2,d_temp:Math.sin(t/7)*.05,vbat:0,ctl:0},
-      {id:1,on:1,emf:15100,p2p:e1,temp:29.8,d_temp:(ph>=33?-.4:Math.sin(t/5)*.03),rssi:-48,loss:.4,vbat:3900-Math.round(t)%50,ctl:0},
-      {id:2,on:ph<24||ph>27,emf:15050,p2p:e2,temp:30.1,d_temp:0,rssi:-61,loss:2.1,vbat:3260,ctl:S.demoCtl2?1:0}],tags:(ph>=19&&ph<28)?[{k:'hvac',note:'furnace',left:Math.round((28-ph)*20)}]:[],drift:(ph>=12&&ph<20)?[{id:1,r:'antenna'}]:[],
-      links:[{id:1,csi:csi},{id:2,csi:9+r()*2}]})},50);}
-function stopDemo(){clearInterval(demoT);S.demo=false;S.nodes.clear();S.hist.clear();log('Live data');}
+      {id:0,on:1,emf:21600,p2p:3+r()*2,temp:43.1+Math.sin(t/9)*.2,d_temp:Math.sin(t/7)*.05,vbat:0,ctl:0},
+      {id:1,on:1,emf:18840,p2p:e1,temp:43.8,d_temp:(ph>=33?-.4:Math.sin(t/5)*.03),rssi:-30,loss:.4,vbat:3900-Math.round(t)%50,ctl:0},
+      {id:3,on:1,emf:19780,p2p:e3,temp:43.3,d_temp:0,rssi:-32,loss:.8,vbat:3260,ctl:0},
+      {id:4,on:on4?1:0,emf:24770,p2p:e4,temp:42.5,d_temp:0,rssi:-43,loss:1.2,vbat:3810,ctl:0}],
+      tags:(ph>=19&&ph<28)?[{k:'hvac',note:'furnace',left:Math.round((28-ph)*20)}]:[],drift:(ph>=12&&ph<20)?[{id:3,r:'antenna'}]:[],
+      links:[hl(1),hl(3),...(on4?[hl(4)]:[])]})},50);}
+function stopDemo(){clearInterval(demoT);S.demo=false;S.p2p=null;S.nodes.clear();S.hist.clear();log('Live data');}
 
 /* ---------- calibration (spec 9.2 item 5) ---------- */
 const CAL_S=30;let calPending=null,calTimer=null,calNodesKey='';
@@ -720,9 +735,10 @@ $('#driftbar').onclick=e=>{if(e.target.dataset&&e.target.dataset.dgo){$('#calp')
 /* ---------- vibration, notifications, title flash ---------- */
 const AL={lastLevel:0,cool:{},flashT:null};
 const alLevel=s=>s>70?2:s>30?1:0;
-function alerts(score){const lv=alLevel(score),up=lv>AL.lastLevel;AL.lastLevel=lv;if(!up)return;
+function alerts(score,vec,vid){   // vec/vid from this frame: S.vector is only updated further down in apply()
+  const lv=alLevel(score),up=lv>AL.lastLevel;AL.lastLevel=lv;if(!up)return;
   const now=Date.now();if(now-(AL.cool[lv]||0)<20000)return;AL.cool[lv]=now;
-  const msg=(lv>1?'Manifesting: ':'Stirring: ')+vecText(S.vector,S.vecId,S.top);toast(msg,lv);
+  const msg=(lv>1?'Manifesting: ':'Stirring: ')+vecText(vec,vid,S.top);toast(msg,lv);
   if($('#al-vib').checked&&navigator.vibrate)navigator.vibrate(lv>1?[200,100,200,100,400]:[120]);
   if($('#al-notif').checked&&'Notification'in window&&Notification.permission==='granted'){try{new Notification('SpectralGrid',{body:msg,tag:'sg'})}catch(e){}}
   if($('#al-flash').checked&&document.hidden&&!AL.flashT){let on=0;AL.flashT=setInterval(()=>{document.title=(on^=1)?'⚠ '+msg:'SpectralGrid'},900)}}

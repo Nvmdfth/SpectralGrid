@@ -27,15 +27,11 @@
 
 <table>
 <tr>
-<td width="50%"><img src="screenshots/demo_alarm.jpg" alt="Alarm state"><br><sub><b>Manifesting.</b> Grid-wide anomaly: the score ring goes red, the title glitches and the links shatter. (Demo data; the earlier radar view, since replaced by the square map.)</sub></td>
-<td width="50%"><img src="screenshots/live_replay.jpg" alt="Session replay on the live hub"><br><sub><b>Session replay, live hub.</b> The hub records the grid; here it is being scrubbed and replayed in a real browser, with the real event log (a tag note is shown as plain text).</sub></td>
+<td width="50%"><img src="screenshots/demo_alarm.jpg" alt="Alarm state"><br><sub><b>Manifesting.</b> Grid-wide anomaly: every path in alert, the score ring red, EMF spiking on all three probes. (Demo data.)</sub></td>
+<td width="50%"><img src="screenshots/demo_context.jpg" alt="Still person, tags, battery and control probes"><br><sub><b>Presence on the line.</b> Someone standing still near probe 1: the paths through that corner are shadowed and the dot marks the estimate. Also a cause tag ("HVAC, furnace"), the battery column flagging a low probe, and per-probe control buttons. (Demo data.)</sub></td>
 </tr>
 <tr>
-<td width="50%"><img src="screenshots/demo_context.jpg" alt="Tags, battery and control probes"><br><sub><b>Context.</b> Cause tags ("HVAC, furnace" on the score), a battery column that flags the low probe, and per-probe control buttons. (Demo data.)</sub></td>
-<td width="50%"><img src="screenshots/live_drift.jpg" alt="Drift prompt"><br><sub><b>Drift prompt, live hub.</b> After five minutes uncalibrated the hub suggests a calibration; accepting one clears the banner.</sub></td>
-</tr>
-<tr>
-<td colspan="2" align="center"><img src="screenshots/demo_barrier_mobile.jpg" alt="Phone layout" height="520"> &nbsp; <img src="screenshots/live_mobile_full.jpg" alt="Live phone layout" height="520"><br><sub>Phone layout: a barrier breach on a link (demo data), and the live hub.</sub></td>
+<td colspan="2" align="center"><img src="screenshots/demo_calm_mobile.jpg" alt="Phone layout, quiet" height="520"> &nbsp; <img src="screenshots/demo_presence_mobile.jpg" alt="Phone layout, presence and drift prompt" height="520"><br><sub>Phone layout: a quiet square, and a still person with a calibration prompt for a probe whose baseline moved. (Demo data.)</sub></td>
 </tr>
 </table>
 
