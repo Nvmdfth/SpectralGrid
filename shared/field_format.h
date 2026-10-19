@@ -11,6 +11,8 @@
 //   EVENT 6: u32 t_ms, u8 type, u8 id, char text[]
 //   CAL   7: u32 t_ms, u8 node, f32 threshold, f32 rssi_base           (presence calibration in effect)
 //   CLOCK 8: u32 t_ms, i64 epoch_ms
+//   P2P   9: u32 t_ms, u8 rx, u8 tx, u16 tstd_x1e5, i16 rssi_x10, u8 state, u8 score, u16 thr_x1e5, i16 rssi_base_x10
+//            (one per probe-to-probe window as reported, ~2 Hz per directed link; added 2026-10-19)
 #pragma once
 #include <stdint.h>
 #include <stddef.h>
@@ -18,7 +20,7 @@
 
 #define FL_SYNC        0xA5
 #define FL_MAX_PAYLOAD 80
-typedef enum { FR_BOOT = 1, FR_FEAT = 2, FR_NODE = 3, FR_AMP = 4, FR_LABEL = 5, FR_EVENT = 6, FR_CAL = 7, FR_CLOCK = 8 } FieldRec;
+typedef enum { FR_BOOT = 1, FR_FEAT = 2, FR_NODE = 3, FR_AMP = 4, FR_LABEL = 5, FR_EVENT = 6, FR_CAL = 7, FR_CLOCK = 8, FR_P2P = 9 } FieldRec;
 
 static inline uint8_t fl_crc8(const uint8_t *d, size_t n, uint8_t crc = 0) {
     for (size_t i = 0; i < n; i++) { crc ^= d[i]; for (int b = 0; b < 8; b++) crc = (uint8_t)((crc & 0x80) ? (crc << 1) ^ 0x07 : crc << 1); }

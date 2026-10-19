@@ -5,6 +5,9 @@ Status: **F1 built (host-tested, builds; not flashed or run on hardware at the t
 As built: `shared/field_format.h` (record framing), `hub/src/fieldlog.cpp` (writer), `hub/src/fieldcal.cpp` (BOOT double-click calibration), `hub/partitions_field.csv`,
 dashboard "Field log" panel, `GET /api/field/log|status`, `POST /api/field/start|stop|erase?confirm=1`, console `field on|off|status`, `hub/tools/field_decode.py`.
 Raw amplitudes are logged at ~25 frames/s per link (every 2nd frame): about 1.6 KB/s including features, so **about 5.6 MB per hour**, about 1.8 h in the ~10 MB data partition.
+That rate is for one probe. With three probes it is roughly three times higher (about 35-40 minutes per log): download and erase
+between runs, and check `minutes_left` in the field status before each one. Probe-to-probe paths are logged as P2P records
+(detector window, threshold and baseline per directed link, ~2 Hz each, added 2026-10-19); the decoder writes them to `p2p.csv`.
 
 ## 1. Goal
 

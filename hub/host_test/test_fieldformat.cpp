@@ -22,13 +22,14 @@ int main(int argc, char **argv) {
     // LABEL, CAL, CLOCK
     fl_u32(p, 3000); memcpy(p + 4, "cross", 5); put(FR_LABEL, p, 9);
     fl_u32(p, 3100); p[4] = 1; fl_f32(p + 5, 0.0298f); fl_f32(p + 9, -40.0f); put(FR_CAL, p, 13);
+    fl_u32(p, 3150); p[4] = 1; p[5] = 4; fl_u16(p + 6, 2940); fl_u16(p + 8, (uint16_t)(int16_t)-359); p[10] = 1; p[11] = 0; fl_u16(p + 12, 4910); fl_u16(p + 14, (uint16_t)(int16_t)-371); put(FR_P2P, p, 16);
     fl_u32(p, 3200); fl_i64(p + 4, 1791500000000LL); put(FR_CLOCK, p, 12);
     size_t good_end = log_.size();
 
     // all records parse back in order
-    { size_t off = 0, cnt = 0; FlRec r; bool ok; uint8_t types[8] = {FR_BOOT, FR_FEAT, FR_AMP, FR_LABEL, FR_CAL, FR_CLOCK};
+    { size_t off = 0, cnt = 0; FlRec r; bool ok; uint8_t types[8] = {FR_BOOT, FR_FEAT, FR_AMP, FR_LABEL, FR_CAL, FR_P2P, FR_CLOCK};
       while (off < log_.size()) { size_t c = fl_parse(log_.data() + off, log_.size() - off, &r, &ok); if (!ok) break; CHECK(r.type == types[cnt]); off += c; cnt++; }
-      CHECK(cnt == 6 && off == log_.size()); }
+      CHECK(cnt == 7 && off == log_.size()); }
 
     // garbage in the middle (power loss / flash fault): the next valid record is found, the garbage is skipped
     { std::vector<uint8_t> b(log_.begin(), log_.begin() + 22);
@@ -37,13 +38,13 @@ int main(int argc, char **argv) {
       b.insert(b.end(), log_.begin() + 22, log_.end());
       size_t off = 0, cnt = 0; FlRec r; bool ok;
       while (off < b.size()) { size_t c = fl_parse(b.data() + off, b.size() - off, &r, &ok); if (!ok) break; off += c; cnt++; }
-      CHECK(cnt == 6); }
+      CHECK(cnt == 7); }
 
     // a corrupted payload byte is rejected (CRC), later records survive
     { std::vector<uint8_t> b = log_; b[30] ^= 0x55;
       size_t off = 0, cnt = 0; FlRec r; bool ok;
       while (off < b.size()) { size_t c = fl_parse(b.data() + off, b.size() - off, &r, &ok); if (!ok) { if (!c) break; off += c; continue; } off += c; cnt++; }
-      CHECK(cnt >= 4 && cnt < 6); }
+      CHECK(cnt >= 5 && cnt < 7); }
 
     // a record cut off at the end waits for more data instead of being consumed
     { FlRec r; bool ok; size_t c = fl_parse(log_.data() + good_end - 16, 10, &r, &ok); CHECK(!ok && c == 0); }   // the CLOCK record, first 10 of its 16 bytes

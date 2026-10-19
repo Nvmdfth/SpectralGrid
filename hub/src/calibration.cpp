@@ -109,15 +109,6 @@ void calibration_feed(const GridFrame *f) {
     if (!sc) return;
     uint32_t now = millis();
     xSemaphoreTake(lock, portMAX_DELAY);
-    int n = req_start_node;
-    if (n != -2) {
-        req_start_node = -2;
-        if (cal_start(&cal, n, req_sens, now)) {
-            for (int i = 0; i < SCORE_N; i++) { pres_cal_reset(&pacc[i]); ppend[i] = PresCalResult(); }
-            p2p_cal_start(n);
-            Serial.printf("calibration: capturing %s for %d s, keep the area still\n", n < 0 ? "all nodes" : "one node", CAL_CAPTURE_MS / 1000);
-        }
-    }
     if (req_discard) { req_discard = false; cal_discard(&cal); for (int i = 0; i < SCORE_N; i++) ppend[i] = PresCalResult(); p2p_cal_discard_all(); Serial.println("calibration: discarded"); logger_event(EV_CAL, 255, f->score, "calibration discarded"); }
     if (req_accept) {
         req_accept = false;
@@ -142,6 +133,16 @@ void calibration_feed(const GridFrame *f) {
     }
     int r = req_reset_node;
     if (r != -2) { req_reset_node = -2; cal_reset(&cal, sc, r); store_save(); for (int i = 0; i < SCORE_N; i++) if (r < 0 || r == i) { pres_link_reset(&sc->pres[i]); drift_reported[i] = false; relearn_seen[i] = 0; } p2p_cal_reset_node(r); pstore_save(); logger_drift_reset_all(); Serial.printf("calibration: reset %s to defaults\n", r < 0 ? "all" : "one node"); logger_event(EV_CAL, 255, f->score, r < 0 ? "calibration reset (all)" : "calibration reset (one node)"); }
+    // A start runs after discard/accept/reset: a discard queued in the same loop would otherwise end the new capture.
+    int n = req_start_node;
+    if (n != -2) {
+        req_start_node = -2;
+        if (cal_start(&cal, n, req_sens, now)) {
+            for (int i = 0; i < SCORE_N; i++) { pres_cal_reset(&pacc[i]); ppend[i] = PresCalResult(); }
+            p2p_cal_start(n);
+            Serial.printf("calibration: capturing %s for %d s, keep the area still\n", n < 0 ? "all nodes" : "one node", CAL_CAPTURE_MS / 1000);
+        }
+    }
     CalPhase before = cal.phase;
     if (cal.phase == CAL_CAPTURING)
         for (int i = 0; i < f->n_links; i++) {

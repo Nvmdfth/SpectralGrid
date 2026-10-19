@@ -156,6 +156,16 @@ void fieldlog_amp(int node, int8_t rssi, const uint8_t *amp52) {
     push(FR_AMP, p, 58);
 }
 
+void fieldlog_p2p(uint8_t rx, uint8_t tx, float tstd, float rssi, uint8_t state, uint8_t score, float thr, float rssi_base) {
+    if (!on) return;
+    uint8_t p[FL_MAX_PAYLOAD];
+    float t = tstd * 100000.0f, h = thr * 100000.0f;
+    fl_u32(p, millis()); p[4] = rx; p[5] = tx; fl_u16(p + 6, (uint16_t)(t < 0 ? 0 : (t > 65535 ? 65535 : t)));
+    fl_u16(p + 8, (uint16_t)(int16_t)lroundf(rssi * 10.0f)); p[10] = state; p[11] = score;
+    fl_u16(p + 12, (uint16_t)(h < 0 ? 0 : (h > 65535 ? 65535 : h))); fl_u16(p + 14, (uint16_t)(int16_t)lroundf(rssi_base * 10.0f));
+    push(FR_P2P, p, 16);
+}
+
 bool fieldlog_label(const char *text) {
     if (!on) return false;
     uint8_t p[FL_MAX_PAYLOAD]; char s[28]; int n = 0;

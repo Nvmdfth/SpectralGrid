@@ -2,6 +2,7 @@
 #include <Preferences.h>
 #include "p2p.h"
 #include "logger.h"
+#include "fieldlog.h"
 
 static P2pSet set;
 static P2pVerdict verdict = {PRES_OFF, 0, 0, 0, -1, -1};
@@ -12,6 +13,7 @@ static bool seen_flags_ok[MESH_MAX_PROBES + 1];
 static uint8_t tries[MESH_MAX_PROBES + 1];                  // "links on" sent without an answer since the probe last had them on
 static bool told_old[MESH_MAX_PROBES + 1];
 static bool was_online[MESH_MAX_PROBES + 1];
+static uint16_t logged_win[P2P_MAX];                       // last window of each link written to the field log
 static const char *NS = "hubp2p";
 static const uint8_t STORE_VER = 1;
 typedef struct { uint8_t ver; struct { bool valid; uint8_t rx, tx; float q0, thr0, r0, q, r; } n[P2P_MAX]; } P2pStore;
@@ -85,6 +87,14 @@ void p2p_loop(const GridFrame *f, uint32_t now_ms) {
         }
     }
     p2p_tick(&set, now_ms);
+    if (fieldlog_on())
+        for (int i = 0; i < P2P_MAX; i++) {
+            const P2pLink &l = set.l[i];
+            if (!l.used || !l.have || l.last_win == logged_win[i]) continue;
+            logged_win[i] = l.last_win;
+            float sc = l.pl.score < 0 ? 0 : (l.pl.score > 255 ? 255 : l.pl.score);
+            fieldlog_p2p(l.rx, l.tx, l.tstd, l.rssi, (uint8_t)l.pl.state, (uint8_t)sc, l.pl.cal ? l.pl.thr : 0.0f, l.pl.rssi_base);
+        }
     verdict = p2p_verdict(&set, now_ms);
     static uint32_t last_save = 0;                                      // learned baseline: save when it moved, at most every 10 min
     if (now_ms - last_save > 600000UL) {
